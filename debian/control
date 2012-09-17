@@ -1,0 +1,40 @@
+Source: iscsitarget
+Section: net
+Priority: optional
+Maintainer: Debian iSCSI Maintainers <pkg-iscsi-maintainers@lists.alioth.debian.org>
+Uploaders: Philipp Hug <debian@hug.cx>, Guido Guenther <agx@sigxcpu.org>, Frederik Schüler <fs@debian.org>, Ritesh Raj Sarraf <rrs@debian.org>
+Build-Depends: debhelper (>= 5.0.0), libssl-dev, bzip2
+Standards-Version: 3.9.2
+Homepage: http://iscsitarget.sourceforge.net/
+Vcs-Git: git://git.debian.org/git/pkg-iscsi/iscsitarget.git
+Vcs-Browser: http://git.debian.org/?p=pkg-iscsi/iscsitarget.git
+
+Package: iscsitarget
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, procps, lsb-base (>= 3.2-14)
+Recommends: iscsitarget-module
+Suggests: iscsitarget-dkms
+Conflicts: iscsitarget-source
+Description: iSCSI Enterprise Target userland tools
+ iSCSI Enterprise Target is for building an iSCSI storage system on
+ Linux. It is aimed at developing an iSCSI target satisfying enterprise
+ requirements.
+ .
+ This package contains the userland part; you require the kernel module 
+ for proper operation.
+
+Package: iscsitarget-dkms
+Architecture: all
+Depends: dkms (>= 1.95), make, ${misc:Depends}
+Recommends: linux-headers
+Conflicts: iscsitarget-source
+Description: iSCSI Enterprise Target kernel module source - dkms version
+ iSCSI Enterprise Target is for building an iSCSI storage system on
+ Linux. It is aimed at developing an iSCSI target satisfying enterprise
+ requirements.
+ .
+ This package provides the source code for the iscsitarget kernel module.
+ The iscsitarget package is also required in order to make use of this
+ module. Kernel source or headers are required to compile this module.
+ .
+ This package contains the source to be built with dkms.

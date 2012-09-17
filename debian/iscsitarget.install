@@ -1,0 +1,5 @@
+usr/ietd	/usr/sbin
+usr/ietadm	/usr/sbin
+etc/ietd.conf	/etc/iet
+etc/initiators.allow	/etc/iet
+etc/targets.allow	/etc/iet

@@ -1,0 +1,22 @@
+Source: iscsitarget
+Section: net
+Priority: optional
+Maintainer: Philipp Hug <debian@hug.cx>
+Uploaders: Frederik Schüler <fs@debian.org>
+Build-Depends: debhelper (>> 5.0.0), linux-headers-_KVERS_
+Standards-Version: 3.8.0
+
+Package: iscsitarget-module-_KVERS_
+Architecture: any
+Provides: iscsitarget-module
+Description: iSCSI Enterprise Target module for Linux (kernel _KVERS_)
+ iSCSI Enterprise Target is for building an iSCSI storage system on
+ Linux. It is aimed at developing an iSCSI target satisfying enterprise
+ requirements.
+ .
+ This package contains the compiled kernel module for _KVERS_
+ .
+ If you have compiled your own kernel, you will most likely need to build
+ your own iscsitarget-modules. The iscsitarget-source package has been
+ provided for use with the Debian kernel-package utility to produce a 
+ version of iscsitarget-module for your kernel.

@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -e
+
+package=iscsitarget-dkms
+name=iscsitarget
+
+version=`dpkg-query -W -f='${Version}' "$package" \
+        |rev|cut -d- -f2-|rev|cut -d':' -f2|tr -d "\n"`
+
+dkms remove -m "$name" -v "$version" --all || true
+
+#DEBHELPER#
+
+exit 0
+

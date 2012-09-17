@@ -1,0 +1,25 @@
+patch to fix build with 3.2 kernels
+Index: iscsitarget/kernel/event.c
+===================================================================
+--- iscsitarget.orig/kernel/event.c	2012-01-28 12:13:42.468979058 +0530
++++ iscsitarget/kernel/event.c	2012-02-15 21:52:49.525342004 +0530
+@@ -9,6 +9,7 @@
+ #include <net/tcp.h>
+ #include "iet_u.h"
+ #include "iscsi_dbg.h"
++#include "iscsi.h"
+ 
+ static struct sock *nl;
+ static u32 ietd_pid;
+Index: iscsitarget/kernel/iscsi.h
+===================================================================
+--- iscsitarget.orig/kernel/iscsi.h	2012-02-01 01:00:43.760787233 +0530
++++ iscsitarget/kernel/iscsi.h	2012-02-15 21:52:21.277201924 +0530
+@@ -15,6 +15,7 @@
+ #include <linux/mm.h>
+ #include <linux/crypto.h>
+ #include <linux/scatterlist.h>
++#include <linux/module.h>
+ #include <net/sock.h>
+ 
+ #include "iscsi_hdr.h"

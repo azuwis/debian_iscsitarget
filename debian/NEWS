@@ -1,0 +1,14 @@
+iscsitarget (1.4.20.1-2) unstable; urgency=low
+
+  The following conf file have changed locations from /etc/ to /etc/iet/
+  * /etc/ietd.conf => /etc/iet/ietd.conf
+  * /etc/initiators.allow => /etc/iet/initiators.allow
+
+  initiators.deny file has been deprecated upstream and thus will not be
+  shipped going forward. The old file, if present will still be used.
+
+  targets.allow file has been added, where different networks/ranges can be
+  specified for individual targets.
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Tue, 18 May 2010 01:07:12 +0530
+

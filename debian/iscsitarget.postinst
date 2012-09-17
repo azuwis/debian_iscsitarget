@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+dpkg-maintscript-helper mv_conffile /etc/ietd.conf /etc/iet/ietd.conf -- "@"
+dpkg-maintscript-helper mv_conffile /etc/initiators.allow /etc/iet/initiators.allow -- "@"
+dpkg-maintscript-helper mv_conffile /etc/initiators.deny /etc/iet/initiators.deny -- "@"
+
+# Clean up old cruft
+dpkg-maintscript-helper rm_conffile /etc/sysctl.d/30-iscsitarget.conf -- "@"
+
+#DEBHELPER#
+
+exit 0

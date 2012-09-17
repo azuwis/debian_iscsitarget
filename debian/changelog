@@ -1,0 +1,319 @@
+iscsitarget (1.4.20.2-10.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+
+  * Fixes ietadm not detecting inactive sessions (Closes: #687925).
+
+ -- Loic Dachary (OuoU) <loic@debian.org>  Mon, 17 Sep 2012 10:42:29 +0200
+
+iscsitarget (1.4.20.2-10) unstable; urgency=low
+
+  * [2bebbc2] don't prompt on modified conffiles.
+    Thanks to Andreas Beckmann (Closes: #661397)
+  * Upload to unstable
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Wed, 14 Mar 2012 01:06:13 +0530
+
+iscsitarget (1.4.20.2-9) experimental; urgency=low
+
+  * [7ad9219] Clean up old sysctl knob.
+    Thanks to Martin Braure de Calignon (Closes: #645582)
+  * [0802fff] Use corrent message type.
+    Thanks to Vincent Pelletier (Closes: #647923)
+  * [dcab13f] Drop unmaintained iscsitarget-source package
+  * [099cc1a] add quilt header to patch
+  * [93dc585] Fix LSB Headers
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Wed, 22 Feb 2012 18:39:35 +0530
+
+iscsitarget (1.4.20.2-8) experimental; urgency=low
+
+  * [735c872] Add patch to fix build on 3.2 kernels (Closes: #659560)
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Wed, 15 Feb 2012 22:01:15 +0530
+
+iscsitarget (1.4.20.2-7) unstable; urgency=low
+
+  * [6ea2c52] Patch clean-up
+  * [627d8e4] Enable hardened build flags.
+    Thanks to Moritz Muehlenhoff (Closes: #656867)
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Wed, 01 Feb 2012 00:43:21 +0530
+
+iscsitarget (1.4.20.2-6) unstable; urgency=low
+
+  * SVN 1.4.20@453 - Co-ordinated with upstream on the stability of the tree
+  * [494142b] Drop double installation of upstream changelog.
+    Thanks to Christian Pernegger (Closes: #633005)
+  * [71de4f8] Add package linux-headers to Recommends.
+    Thanks to George Shuklin (Closes: 636157, 628428)
+  * [8344c44] Add support to provide daemon options.
+    Thanks to Alfredo Sola, Robbert Rijkse (Closes: 609582, 545536)
+  * [8208ade] Drop debian/30-iscsitarget.conf. (Closes: 636497)
+    We should not play with kernel sysct knobs right from the package.
+    Setting those values will depend on a per machine basis
+  * [0e96f0e] Update Standards Version to 3.9.2. No changes required
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Sun, 07 Aug 2011 02:09:59 +0530
+
+iscsitarget (1.4.20.2-5) experimental; urgency=low
+
+  * Sync to 1.4.20 branch. This is equivalent of 1.4.20.3 and includes all
+    commits up till revision 1.4.20@453
+  * Add linux-headers packages to Suggests (Closes: #628428)
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Tue, 14 Jun 2011 09:30:01 +0530
+
+iscsitarget (1.4.20.2-4expr2) experimental; urgency=low
+
+  * Sync to 1.4.20 branch. This is equivalent of 1.4.20.3 and includes all
+    commits up till revision 1.4.20@445
+    (Closes: #618682, #622318, #610309)
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Tue, 26 Apr 2011 15:40:17 +0530
+
+iscsitarget (1.4.20.2-4) unstable; urgency=low
+
+  * Last upload was incorrect. Really upload to unstable now
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Sat, 12 Feb 2011 01:59:17 +0530
+
+iscsitarget (1.4.20.2-3) unstable; urgency=low
+
+  * Upload to unstable
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Thu, 10 Feb 2011 20:13:59 +0530
+
+iscsitarget (1.4.20.2-2) experimental; urgency=low
+
+  [ Michael Prokop ]
+  * NIPQUAD definition has been removed in kernel 2.6.36,
+    adjust kernel/conn.c accordingly so iscsitarget compiles
+    against kernel 2.6.36. (Closes: #604641)
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Sat, 08 Jan 2011 21:57:56 +0545
+
+iscsitarget (1.4.20.2-1) unstable; urgency=low
+
+  * New Upstream Bug Fix Release
+  * Fix incorrect path installation. Correct path is /etc/iet/ 
+  * Update Standards Version to 3.9.1 (No changes required) 
+  * Add DKMS support for iscsitarget kernel module building 
+  * Add iscsitarget-dkms to Suggests 
+  * Change PID_FILE to ietd.pid. This was causing the ietd daemon to not
+    be killed. Not very sure, perhaps upstream must have changed to ietd.pid
+    from iscsi_trgt.pid (Closes: #589738)
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Tue, 03 Aug 2010 13:38:08 +0530
+
+iscsitarget (1.4.20.1-2) unstable; urgency=low
+
+  * Change address to my official Debian address and remove the DMUA flag
+  * Handle older kernel versions patches that upstream still supports. This
+    should allow compiling iscsitarget with older kernels now.
+    (Closes: #581200) 
+  * Drop initiators.deny file in further installations which is already 
+    deprecated upstream 
+  * Switch config files directory to /etc/ietd as upstream recommends it and
+    document this change in NEWS.Debian 
+  * Add post-installation script to handle migration of old config file to the
+    new location 
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Sat, 05 Jun 2010 22:52:42 +0530
+
+iscsitarget (1.4.20.1-1) unstable; urgency=low
+
+  * New Upstream Bugfix Release 
+  * Switch to 3.0 (quilt) source format 
+
+ -- Ritesh Raj Sarraf <rrs@researchut.com>  Mon, 03 May 2010 14:24:52 +0530
+
+iscsitarget (1.4.20-1) unstable; urgency=low
+
+  [ Philipp Hug ]
+  * This package is group maintained now
+  * Changed maintainer to alioth project mailing list
+
+  [ Ritesh Raj Sarraf ]
+  * New Upstream Release (Closes: #566509)
+  * Add myself to Uploaders
+  * LSB-ize the iscsitarget init script (Closes: #506588, #546477) 
+  * Add misc:Depends
+  * Bump Standards Version. (No Changes Required) 
+  * Add DM Upload: yes
+  * Add debian/source/format specifying the source format 
+  * Explain a little more about iscsitarget-module package and how it is
+    made available, in README.Debian 
+  * Add Vcs headers 
+
+ -- Ritesh Raj Sarraf <rrs@researchut.com>  Sun, 18 Apr 2010 21:34:09 +0530
+
+iscsitarget (0.4.17+svn229-1.4) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * [f1d4105] Depend on procps (Closes: #569684)
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 16 Feb 2010 11:34:37 +0100
+
+iscsitarget (0.4.17+svn229-1.3) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * [2a179ca] Let propcs handle the sysctl knobs to  make it more obvious to
+    the sysadmin what's going on. (Closes: #543604)
+
+ -- Guido Günther <agx@sigxcpu.org>  Sat, 23 Jan 2010 17:36:12 +0100
+
+iscsitarget (0.4.17+svn229-1.2) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Include patch from Petter Reinholdtsen <pere@debian.org>:
+    - Fix incorrect provides and dependencies in init.d script
+      (to solve release goal). (Closes: #542248)
+
+ -- Michael Prokop <mika@debian.org>  Thu, 24 Sep 2009 00:05:36 +0200
+
+iscsitarget (0.4.17+svn229-1.1) unstable; urgency=low
+
+  * Non-maintainer upload. (Closes: #523374, #544941)
+  * New upstream snapshot.
+  * Bump Standards-Version to 3.8.3.
+
+ -- Michael Prokop <mika@debian.org>  Fri, 11 Sep 2009 00:09:42 +0200
+
+iscsitarget (0.4.16+svn162-3) unstable; urgency=medium
+
+  [ Jon Dowland ]
+  * Add /etc/default/iscsitarget to determine whether to
+    start the iscsitarget automatically or not. Default to
+    not (environment might not have the correct module).
+    Closes: #506099.
+
+ -- Frederik Schüler <fs@debian.org>  Wed, 03 Dec 2008 15:07:17 +0100
+
+iscsitarget (0.4.16+svn162-2) unstable; urgency=high
+
+  * Fix initscript. (Closes: #484107)
+
+ -- Frederik Schüler <fs@debian.org>  Sat, 04 Oct 2008 20:27:14 +0200
+
+iscsitarget (0.4.16+svn162-1) unstable; urgency=low
+
+  * New upstream snapshot.
+  * Fix bashism in initscript. (Closes: #486035)
+  * Bump standards to 3.8.0, no changes needed.
+  * List all copyright holders and contributors in the copyright file.
+
+ -- Frederik Schüler <fs@debian.org>  Mon, 30 Jun 2008 00:11:39 +0200
+
+iscsitarget (0.4.15+svn148-2) unstable; urgency=high
+
+  * Fix initscript, thanks to Gilles Mocellin for the patch. (Closes: #470411)
+
+ -- Frederik Schüler <fs@debian.org>  Tue, 11 Mar 2008 23:01:45 +0100
+
+iscsitarget (0.4.15+svn148-1) unstable; urgency=low
+
+  * New upstream snapshot.
+    - Adds support for 2.6.24 kernels. (Closes: #461753)
+  * Fix bashism in initscript.(Closes: #464993)
+
+ -- Frederik Schüler <fs@debian.org>  Tue, 19 Feb 2008 20:52:01 +0100
+
+iscsitarget (0.4.15+svn145-1) unstable; urgency=low
+
+  * New upstream snapshot.
+    - support 2.6.23 kernels. (Closes: #449237)
+    - fix ia64 FTBFS. (Closes: #457615)
+  * Update to standards version 3.7.3, no changes needed.
+  * Fix kbuild-clean target, thanks to Jeremy Laine <jeremy.laine@m4x.org>
+    for the fix.
+  * Add lsb section to the iscsitarget initscript.
+  * Add lintian override for /etc/ietd.conf permissions.
+
+ -- Frederik Schüler <fs@debian.org>  Sat, 29 Dec 2007 22:53:26 +0100
+
+iscsitarget (0.4.15-5) unstable; urgency=high
+
+  * Urgenc: high due to security update.
+  * Fix /etc/ietd.conf permissions. (Closes: #448873)
+  * Fix module-assistant build. Thanks to Franklin PIAT <fpiat@bigfoot.com>
+    for the patch. (Closes: #448195)
+
+ -- Frederik Schüler <fs@debian.org>  Sun, 04 Nov 2007 18:54:41 +0100
+
+iscsitarget (0.4.15-4) unstable; urgency=low
+
+  [ Frederik Schüler ]
+  * Fix build failure on linux-2.6.22 (Closes: #432522)
+  * Add toplevel Makefile to the module sources (Closes: #431765)
+  * iscsitarget-source: do not recommend iscsitarget (Closes: #433318)
+
+ -- Frederik Schüler <fs@debian.org>  Mon, 24 Sep 2007 12:15:50 +0200
+
+iscsitarget (0.4.15-3) unstable; urgency=low
+
+  * Don't depend on iscsitarget-module (Closes: #431302)
+
+ -- Philipp Hug <debian@hug.cx>  Mon, 02 Jul 2007 15:39:36 +0200
+
+iscsitarget (0.4.15-2) unstable; urgency=low
+
+  * Uploaded to unstable
+
+ -- Philipp Hug <debian@hug.cx>  Sat, 16 Jun 2007 21:48:42 +0200
+
+iscsitarget (0.4.15-1) experimental; urgency=low
+
+  * New upstream release
+  * Uploaded to experimental (Closes: #304330)
+
+ -- Philipp Hug <debian@hug.cx>  Mon, 16 Apr 2007 22:18:57 +0200
+
+iscsitarget (0.4.14+svn92-1) UNRELEASED; urgency=low
+
+  * New upstream snapshot for kernels 2.6.19 and later.
+
+ -- Frederik Schüler <fs@debian.org>  Sun, 14 Jan 2007 23:05:56 +0100
+
+iscsitarget (0.4.13-3) unstable; urgency=low
+
+  * Added missing config files
+
+ -- Philipp Hug <debian@hug.cx>  Sun, 26 Mar 2006 15:30:10 +0000
+
+iscsitarget (0.4.13-2) unstable; urgency=low
+
+  * Fixed init script
+  * Build-Dependency on libssl-dev
+  * depmod -a was not called
+  * Recompiled on unstable/sid
+
+ -- Philipp Hug <debian@hug.cx>  Sun, 22 Jan 2006 18:23:50 +0100
+
+iscsitarget (0.4.13-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Philipp Hug <debian@hug.cx>  Sun, 22 Jan 2006 17:26:19 +0100
+
+iscsitarget (0.4.11-1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Philipp Hug <debian@hug.cx>  Thu, 14 Jul 2005 13:07:45 +0200
+
+iscsitarget (0.4.6-2) experimental; urgency=low
+
+  * Fixed kernel module build
+  * Added patch for < 2.6.11 kernels, not yet applied
+  * Added depmod -a to postinst
+  * Changed section to net
+
+ -- Philipp Hug <debian@hug.cx>  Tue, 29 Mar 2005 23:12:36 +0200
+
+iscsitarget (0.4.6-1) experimental; urgency=low
+
+  * Initial Release.
+
+ -- Philipp Hug <debian@hug.cx>  Tue, 29 Mar 2005 20:57:04 +0200
+

@@ -1,0 +1,83 @@
+Description: ietadm not detecting inactive sessions
+ Once 1.4.20.3 is released, this patch can be dropped, it is commited at
+ http://iscsitarget.svn.sourceforge.net/viewvc/iscsitarget?revision=478&view=revision
+ .
+ Fix retrieval of ietd pid from netlink
+ .
+ The ietd pid was retrieved from the credentials in the netlink skb
+ which happened to work with kernels < 3.2. These days the credentials
+ are not sent by default anymore (and ietd doesn't fill them in) so
+ the pid needs to be determined from the netlink_skb_parms.
+ .
+ This fixes a bug reported by Clay Gerrard ("Can't delete target after
+ initiator logs out", caused by the session removal event not making it
+ to ietd).
+ .
+Author: Arne Redlich <arne.redlich@googlemail.com>
+Reviewed-by: Loic Dachary <loic@debian.org>
+Last-Update: 2012-09-17
+Applied-Upstream: http://iscsitarget.svn.sourceforge.net/viewvc/iscsitarget?revision=478&view=revision
+Bug-Debian: http://bugs.debian.org/687925
+Bug-Ubuntu: https://launchpad.net/bugs/967984
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- trunk/kernel/event.c	2012/04/03 18:19:28	477
++++ trunk/kernel/event.c	2012/04/06 21:58:31	478
+@@ -14,24 +14,8 @@
+ static struct sock *nl;
+ static u32 ietd_pid;
+ 
+-static int event_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+-{
+-	u32 uid, pid, seq;
+-	char *data;
+-
+-	pid  = NETLINK_CREDS(skb)->pid;
+-	uid  = NETLINK_CREDS(skb)->uid;
+-	seq  = nlh->nlmsg_seq;
+-	data = NLMSG_DATA(nlh);
+-
+-	ietd_pid = pid;
+-
+-	return 0;
+-}
+-
+ static void event_recv_skb(struct sk_buff *skb)
+ {
+-	int err;
+ 	struct nlmsghdr	*nlh;
+ 	u32 rlen;
+ 
+@@ -42,9 +26,9 @@
+ 		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
+ 		if (rlen > skb->len)
+ 			rlen = skb->len;
+-		if ((err = event_recv_msg(skb, nlh))) {
+-			netlink_ack(skb, nlh, -err);
+-		} else if (nlh->nlmsg_flags & NLM_F_ACK)
++		ietd_pid = NETLINK_CB(skb).pid;
++		WARN_ON(ietd_pid == 0);
++		if (nlh->nlmsg_flags & NLM_F_ACK)
+ 			netlink_ack(skb, nlh, 0);
+ 		skb_pull(skb, rlen);
+ 	}
+@@ -59,6 +43,7 @@
+ 	if (!(skb = alloc_skb(NLMSG_SPACE(len), gfp_mask)))
+ 		return -ENOMEM;
+ 
++	WARN_ON(ietd_pid == 0);
+ 	nlh = __nlmsg_put(skb, ietd_pid, seq++, NLMSG_DONE, len - sizeof(*nlh), 0);
+ 
+ 	memcpy(NLMSG_DATA(nlh), data, len);

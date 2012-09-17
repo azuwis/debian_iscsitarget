@@ -1,0 +1,285 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+# Sample debian/rules that uses debhelper.
+# GNU copyright 1997 to 1999 by Joey Hess.
+#
+# Modified to make a template file for a multi-binary package with separated
+# build-arch and build-indep targets  by Bill Allombert 2001
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
+
+# get-orig-source target
+DEB_UPSTREAM_VERSION=$(shell dpkg-parsechangelog | sed -rne 's,^Version: ([^-]+).*,\1,p')
+
+get-orig-source:
+	[ ! -f $(ORIG_FILE).gz ] || rm -f $(ORIG_FILE).gz
+	uscan --force-download --rename --repack --download-version=$(DEB_UPSTREAM_VERSION) --destdir=.
+
+
+
+non_epoch_version=$(shell echo $(KVERS) | perl -pe 's/^\d+://')
+
+PACKAGE=iscsitarget
+pmodules = $(PACKAGE)-module-$(non_epoch_version)
+
+# DKMS package
+pdkms=iscsitarget-dkms
+
+CFLAGS = `dpkg-buildflags --get CFLAGS`
+CFLAGS += -Wall
+CFLAGS += `dpkg-buildflags --get CPPFLAGS`
+LDFLAGS = `dpkg-buildflags --get LDFLAGS`
+export CFLAGS
+export LDFLAGS
+
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+	INSTALL_PROGRAM += -s
+endif
+
+# module-assistant stuff
+MAJOR=$(shell echo $(KVERS) | sed -e 's/\(...\).*/\1/')
+ifeq ($(MAJOR),2.6)
+KO=k
+endif
+
+KERN_VER=$(shell echo $(KVERS) | cut -d "-" -f1)
+
+# Taken from upstream iscsitarget's Makefile
+KMAJ := $(shell echo $(KERN_VER) | \
+	sed -e 's/^\([0-9][0-9]*\)\.[0-9][0-9]*\.[0-9][0-9]*.*/\1/')
+KMIN := $(shell echo $(KERN_VER) | \
+	sed -e 's/^[0-9][0-9]*\.\([0-9][0-9]*\)\.[0-9][0-9]*.*/\1/')
+KREV := $(shell echo $(KERN_VER) | \
+	sed -e 's/^[0-9][0-9]*\.[0-9][0-9]*\.\([0-9][0-9]*\).*/\1/')
+
+kver_eq = $(shell [ $(KMAJ)$(KMIN)$(KREV) -eq $(1)$(2)$(3) ] && \
+	echo 1 || echo 0)
+kver_lt = $(shell [ $(KMAJ)$(KMIN)$(KREV) -lt $(1)$(2)$(3) ] && \
+	echo 1 || echo 0)
+kver_le = $(shell [ $(KMAJ)$(KMIN)$(KREV) -le $(1)$(2)$(3) ] && \
+	echo 1 || echo 0)
+kver_gt = $(shell [ $(KMAJ)$(KMIN)$(KREV) -gt $(1)$(2)$(3) ] && \
+	echo 1 || echo 0)
+kver_ge = $(shell [ $(KMAJ)$(KMIN)$(KREV) -ge $(1)$(2)$(3) ] && \
+	echo 1 || echo 0)
+kver_lk = $(shell [ `echo $(KERN_VER) | egrep $(1)` ] && echo 1 || echo 0)
+
+# Compatibility patch for kernels >= 2.6.36  <= 2.6.38
+ifeq ($(call kver_le,2,6,38),1)
+	PATCHES := $(PATCHES) compat-2.6.36-2.6.37.patch
+endif
+
+# Compatibility patch for kernels > 2.6.32 <= 2.6.35
+ifeq ($(call kver_le,2,6,35),1)
+	PATCHES := $(PATCHES) compat-2.6.33-2.6.35.patch
+endif
+
+# Compatibility patch for kernels <= 2.6.32
+ifeq ($(call kver_le,2,6,32),1)
+	PATCHES := $(PATCHES) compat-2.6.32.patch
+endif
+
+# Compatibility patch for kernels <= 2.6.31
+ifeq ($(call kver_le,2,6,31),1)
+	PATCHES := $(PATCHES) compat-2.6.31.patch
+endif
+
+# Compatibility patch for kernels <= 2.6.30
+ifeq ($(call kver_le,2,6,30),1)
+	PATCHES := $(PATCHES) compat-2.6.30.patch
+endif
+
+# Compatibility patch for kernels <= 2.6.29
+ifeq ($(call kver_le,2,6,29),1)
+	PATCHES := $(PATCHES) compat-2.6.29.patch
+endif
+
+# Compatibility patch for kernels <= 2.6.28
+ifeq ($(call kver_le,2,6,28),1)
+	PATCHES := $(PATCHES) compat-2.6.28.patch
+endif
+
+# Compatibility patch for kernels >= 2.6.25 and <= 2.6.27
+ifeq ($(call kver_le,2,6,27),1)
+	PATCHES := $(PATCHES) compat-2.6.25-2.6.27.patch
+endif
+
+# Compatibility patch for kernels <= 2.6.24
+ifeq ($(call kver_le,2,6,24),1)
+	PATCHES := $(PATCHES) compat-2.6.24.patch
+endif
+
+# Compatibility patch for kernels <= 2.6.23
+ifeq ($(call kver_le,2,6,23),1)
+	PATCHES := $(PATCHES) compat-2.6.23.patch
+endif
+
+# Compatibility patch for kernels <= 2.6.22
+ifeq ($(call kver_le,2,6,22),1)
+	PATCHES := $(PATCHES) compat-2.6.22.patch
+endif
+
+# Compatibility patch for kernels >= 2.6.19 and <= 2.6.21
+ifeq ($(call kver_le,2,6,21),1)
+	PATCHES := $(PATCHES) compat-2.6.19-2.6.21.patch
+endif
+
+# Compatibility patch for kernels >= 2.6.14 and <= 2.6.18
+ifeq ($(call kver_le,2,6,18),1)
+	PATCHES := $(PATCHES) compat-2.6.14-2.6.18.patch
+endif
+
+# We don't support kernels < 2.6.14 except for explicit distros
+ifeq ($(call kver_lt,2,6,14),1)
+	echo "unsupported kernel"
+	exit 1
+endif
+
+
+kdist_clean:
+	dh_clean
+	$(MAKE) -C $(KSRC) SUBDIRS=$(shell pwd)/kernel clean
+
+# prep-deb-files rewrites the debian/ files as needed. See RATIONALE for
+# details
+kdist_config: prep-deb-files
+	for p in $(PATCHES); do \
+		echo "Applying patch $$p"; \
+		test -f patches/$$p && patch -p1 < patches/$$p \
+		#test -f patches/compat-$(KERN_VER).patch && patch -p1 < patches/compat-$(KERN_VER).patch \
+	done
+
+kdist_configure: kdist_config
+
+binary-modules: prep-deb-files
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	#$(MAKE) -C $(KSRC) KERNEL_SOURCES=$(KSRC) MODVERSIONS=detect KERNEL=linux-$(KVERS) KDIR=$(KSRC) SUBDIRS=$(shell pwd)/kernel modules
+	$(MAKE) -C $(KSRC) SUBDIRS=$(shell pwd)/kernel modules
+	
+	#$(MAKE) -C $(KSRC) SUBDIRS=$(shell pwd)/kernel modules_install DESTDIR=$(CURDIR)/debian/$(pmodules)
+	install -m644 -b -D $(shell pwd)/kernel/iscsi_trgt.$(KO)o $(CURDIR)/debian/${pmodules}/lib/modules/$(KVERS)/kernel/drivers/iscsi/iscsi_trgt.$(KO)o
+
+	dh_installdocs
+	dh_installchangelogs
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_gencontrol -- -v$(VERSION)
+	dh_md5sums
+	dh_builddeb --destdir=$(DEB_DESTDIR)
+
+#Architecture 
+build: build-arch build-indep
+
+build-arch: build-arch-stamp
+build-arch-stamp: 
+	dh_testdir
+	$(MAKE) -C usr
+	touch build-arch-stamp
+
+build-indep: build-indep-stamp
+build-indep-stamp: 
+	touch build-indep-stamp
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-arch-stamp build-indep-stamp #CONFIGURE-STAMP#
+	$(MAKE) -C usr clean
+	dh_clean 
+
+install: install-arch install-indep
+install-indep:
+	dh_testdir
+	dh_testroot
+	dh_clean -k -i 
+	dh_installdirs -i
+	
+	# For DKMS
+	# Create the directories to install the source into
+	dh_installdirs -p$(pdkms)  usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)
+	dh_installdirs -p$(pdkms)  usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/debian
+	dh_installdirs -p$(pdkms)  usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/include
+	dh_installdirs -p$(pdkms)  usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/kernel
+	dh_installdirs -p$(pdkms)  usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/patches
+	
+	# Copy only the driver source to the proper location
+	cp kernel/*  debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/kernel/
+	cp include/* debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/include/
+	cp patches/* debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/patches/
+	
+	# Copy the needed debian/ pieces to the proper location
+	cp debian/*-module-* \
+		debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/debian
+	chmod 755 debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/debian/*-module-*
+	cp debian/control.modules.in \
+		debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/debian/control.in
+	cp debian/rules \
+		debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/debian
+	cp debian/changelog \
+		debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/debian
+	cp debian/copyright \
+		debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/debian
+	
+	# install debian/ files
+	cd debian ; cp changelog control compat *.modules.in rules copyright $(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/debian
+	
+	# create toplevel module Makefile
+	echo "obj-m = kernel/" > debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/Makefile
+	
+	# Prepare dkms.conf from the dkms.conf.in template
+	sed "s/__VERSION__/$(DEB_UPSTREAM_VERSION)/g" debian/dkms.conf.in > debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/dkms.conf
+	grep ^PATCH dkms.conf >> debian/$(pdkms)/usr/src/$(PACKAGE)-$(DEB_UPSTREAM_VERSION)/dkms.conf
+
+
+	dh_install -i
+
+install-arch:
+	dh_testdir
+	dh_testroot
+	dh_clean -k -s 
+	dh_installdirs -s
+	dh_install -s
+	
+	# install override
+	mkdir -p debian/iscsitarget/usr/share/lintian/overrides
+	cp debian/iscsitarget.overrides \
+		debian/iscsitarget/usr/share/lintian/overrides/iscsitarget
+
+# Must not depend on anything. This is to be called by
+# binary-arch/binary-indep
+# in another 'make' thread.
+binary-common:
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs ChangeLog
+	dh_installdocs
+	dh_installinit
+	dh_installman
+	dh_link
+	dh_strip
+	dh_compress 
+	dh_fixperms
+	chmod 600 $(CURDIR)/debian/iscsitarget/etc/iet/ietd.conf
+	dh_makeshlibs
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+# Build architecture independant packages using the common target.
+binary-indep: build-indep install-indep
+	$(MAKE) -f debian/rules DH_OPTIONS=-i binary-common
+
+# Build architecture dependant packages using the common target.
+binary-arch: build-arch install-arch
+	$(MAKE) -f debian/rules DH_OPTIONS=-a binary-common
+
+binary: binary-arch binary-indep
+.PHONY: build clean binary-indep binary-arch binary install install-indep install-arch get-orig-source

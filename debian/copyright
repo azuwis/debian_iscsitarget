@@ -1,0 +1,37 @@
+This package was debianized by Philipp Hug <debian@hug.cx> on
+Tue, 29 Mar 2005 20:57:04 +0200.
+
+It was downloaded from http://iscsitarget.sourceforge.net/
+
+Upstream authors:
+Copyright (C) 2001-2003 InterOperability Lab (IOL)
+Copyright (C) 2002-2003 Ardis Technolgies <roman@ardistech.com>
+Copyright (C) 2005 MING Zhang <mingz@ele.uri.edu>
+Copyright (C) 2006 FUJITA Tomonori <tomof@acm.org>
+
+and various contributions from iscsitarget-devel@sourceforge.net:
+Ali Lehmann
+Arne Redlich
+Bastiaan Bakker
+Dave Jiang
+Emmanuel Florac
+Florian Zierer
+Frederic Temporelli
+Henry Liu
+Juhani Rautiainen
+Junjiro Okajima
+K Chapman
+Krzysztof Blaszkowski
+Libor Vanek
+Philipp Hug
+Richard Bollinger
+Robert Whitehead
+Ross S. W. Walker
+Wang Zhenyu
+
+
+License:
+
+GNU General Public License version 2, see /usr/share/common-licenses/GPL-2
+for more information.
+

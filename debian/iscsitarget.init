@@ -1,0 +1,135 @@
+#!/bin/sh
+#
+### BEGIN INIT INFO
+# Provides:          iscsitarget
+# Required-Start:    $remote_fs $syslog $network $time procps
+# Required-Stop:     $remote_fs $syslog $network $time procps
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Starts and stops the iSCSI software target
+# Description:       Starts and stops the iSCSI software target
+### END INIT INFO
+
+PID_FILE=/var/run/ietd.pid
+CONFIG_FILE=/etc/iet/ietd.conf
+DAEMON=/usr/sbin/ietd
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+. /lib/lsb/init-functions # log_{warn,failure}_msg
+
+ISCSITARGET_ENABLE=false
+ISCSITARGET_DEFAULTS_FILE=/etc/default/iscsitarget
+if [ -s "$ISCSITARGET_DEFAULTS_FILE" ]; then
+    . "$ISCSITARGET_DEFAULTS_FILE"
+    case "x$ISCSITARGET_ENABLE" in
+        xtrue|xfalse) ;;
+        *)
+            log_failure_msg "value of ISCSITARGET_ENABLE must be either 'true' or 'false';"
+            log_failure_msg "not starting iscsitarget."
+            exit 1
+            ;;
+    esac
+fi
+
+RETVAL=0
+
+ietd_start()
+{
+	log_daemon_msg "Starting iSCSI enterprise target service"
+	modprobe -q crc32c
+	modprobe iscsi_trgt
+	RETVAL=$?
+	if [ $RETVAL != "0" ] ;  then 
+		log_end_msg 1
+		exit $RETVAL
+	fi
+	start-stop-daemon --start --exec $DAEMON --quiet --oknodo -- $ISCSITARGET_OPTIONS
+	RETVAL=$?
+	if [ $RETVAL = "0" ]; then
+		log_end_msg 0
+	else
+		log_end_msg 1
+		exit $RETVAL
+	fi	    
+	log_end_msg 0
+	exit 0
+}
+	
+ietd_stop()
+{
+	log_daemon_msg "Removing iSCSI enterprise target devices: "
+	pidof ietd >/dev/null 2>&1 
+	RETVAL=$?
+	if [ $RETVAL = "0" ] ; then
+		# ugly, but ietadm does not allways provides correct exit values
+		RETURN=`ietadm --op delete 2>&1`
+		RETVAL=$?
+		if [ $RETVAL = "0" ] && [ "$RETURN" != "something wrong" ] ; then
+			log_end_msg 0
+		else
+			log_end_msg 1
+			log_failure_msg "failed with reason :$RETURN"
+			exit $RETVAL
+		fi
+		log_daemon_msg "Stopping iSCSI enterprise target service: "
+		start-stop-daemon --stop --quiet --exec $DAEMON --pidfile $PID_FILE --oknodo
+		RETVAL=$?
+		if [ $RETVAL = "0" ]; then
+			log_end_msg 0
+		else
+			log_end_msg 1
+		fi
+	else
+		log_end_msg 0
+	fi
+	# ugly, but pid file is not removed by ietd
+	rm -f $PID_FILE
+	
+	# check if the module is loaded at all
+	lsmod | grep -q iscsi_trgt
+	RETVAL=$?
+	if [ $RETVAL = "0" ] ; then
+		
+		log_daemon_msg "Removing iSCSI enterprise target modules: "
+		modprobe -r iscsi_trgt
+		RETVAL=$?
+		modprobe -r crc32c 2>/dev/null
+		if [ $RETVAL = "0" ]; then
+			log_end_msg 0
+		else
+			log_end_msg 1
+	  		exit $RETVAL
+		fi
+	fi
+}
+
+case "$1" in
+  start)
+        if [ "$ISCSITARGET_ENABLE" = "true" ]; then
+            ietd_start
+        else
+            log_warning_msg "iscsitarget not enabled in \"$ISCSITARGET_DEFAULTS_FILE\", not starting..."
+        fi
+        ;;
+  stop)
+        ietd_stop
+        ;;
+  restart|force-reload)
+        ietd_stop
+	sleep 1
+        if [ "$ISCSITARGET_ENABLE" = "true" ]; then
+            ietd_start
+        else
+            log_warning_msg "iscsitarget not enabled in \"$ISCSITARGET_DEFAULTS_FILE\", not starting..."
+        fi
+        ;;
+  status)
+	status_of_proc -p $PID_FILE $DAEMON "iSCSI enterprise target" && exit 0 || exit $?
+	;;
+  *)
+        log_action_msg "Usage: $0 {start|stop|restart|status}"
+        exit 1
+esac
+
+exit 0
