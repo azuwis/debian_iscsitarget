@@ -87,10 +87,9 @@ retry:
 
 	switch (event.state) {
 	case E_CONN_CLOSE:
-		if (!(session = session_find_id(event.tid, event.sid))) {
-			log_warning("session %llu not found?", event.sid);
-			goto retry;
-		}
+		if (!(session = session_find_id(event.tid, event.sid)))
+			/* session previously closed for reinstatement? */
+			break;
 
 		if (--session->conn_cnt <= 0)
 			session_remove(session);

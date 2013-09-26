@@ -33,9 +33,11 @@ Forwarded: <no|not-needed|url proving that it has been forwarded>
 Reviewed-By: <name and email of someone who approved the patch>
 Last-Update: <YYYY-MM-DD>
 
---- trunk/kernel/event.c	2012/04/03 18:19:28	477
-+++ trunk/kernel/event.c	2012/04/06 21:58:31	478
-@@ -14,24 +14,8 @@
+Index: iscsitarget/kernel/event.c
+===================================================================
+--- iscsitarget.orig/kernel/event.c	2013-03-20 23:47:12.357667407 +0530
++++ iscsitarget/kernel/event.c	2013-03-20 23:47:12.353667407 +0530
+@@ -13,24 +13,8 @@
  static struct sock *nl;
  static u32 ietd_pid;
  
@@ -60,7 +62,7 @@ Last-Update: <YYYY-MM-DD>
  	struct nlmsghdr	*nlh;
  	u32 rlen;
  
-@@ -42,9 +26,9 @@
+@@ -41,9 +25,9 @@
  		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
  		if (rlen > skb->len)
  			rlen = skb->len;
@@ -73,7 +75,7 @@ Last-Update: <YYYY-MM-DD>
  			netlink_ack(skb, nlh, 0);
  		skb_pull(skb, rlen);
  	}
-@@ -59,6 +43,7 @@
+@@ -58,6 +42,7 @@
  	if (!(skb = alloc_skb(NLMSG_SPACE(len), gfp_mask)))
  		return -ENOMEM;
  

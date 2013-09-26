@@ -12,8 +12,7 @@ Vcs-Browser: http://git.debian.org/?p=pkg-iscsi/iscsitarget.git
 Package: iscsitarget
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, procps, lsb-base (>= 3.2-14)
-Recommends: iscsitarget-module
-Suggests: iscsitarget-dkms
+Recommends: iscsitarget-dkms
 Conflicts: iscsitarget-source
 Description: iSCSI Enterprise Target userland tools
  iSCSI Enterprise Target is for building an iSCSI storage system on
@@ -27,6 +26,7 @@ Package: iscsitarget-dkms
 Architecture: all
 Depends: dkms (>= 1.95), make, ${misc:Depends}
 Recommends: linux-headers
+Suggests: iscsitarget
 Conflicts: iscsitarget-source
 Description: iSCSI Enterprise Target kernel module source - dkms version
  iSCSI Enterprise Target is for building an iSCSI storage system on

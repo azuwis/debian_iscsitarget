@@ -1,0 +1,21 @@
+diff --git b/kernel/event.c a/kernel/event.c
+index ef4adcb..024c1be 100644
+--- b/kernel/event.c
++++ a/kernel/event.c
+@@ -26,7 +26,7 @@ static void event_recv_skb(struct sk_buff *skb)
+ 		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
+ 		if (rlen > skb->len)
+ 			rlen = skb->len;
+-		ietd_pid = NETLINK_CB(skb).portid;
++		ietd_pid = NETLINK_CB(skb).pid;
+ 		WARN_ON(ietd_pid == 0);
+ 		if (nlh->nlmsg_flags & NLM_F_ACK)
+ 			netlink_ack(skb, nlh, 0);
+@@ -78,6 +78,7 @@ int event_init(void)
+ 
+ 	nl = netlink_kernel_create(&init_net,
+ 				   NETLINK_IET,
++				   THIS_MODULE,
+ 				   &cfg);
+ 	if (!nl)
+ 		return -ENOMEM;

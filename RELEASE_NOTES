@@ -2,6 +2,31 @@
                Release Notes for iSCSI Enterprise Target
                =========================================
 
+                            March 18th, 2011
+                            Version 1.4.20.3
+                            ----------------
+
+The IET development team is pleased to announce the release of version
+1.4.20.3 of the iSCSI Enterprise Target.
+
+This release is a bugfix release. The following issues were fixed:
+- multiple compatibility updates to bring kernel support up to 2.6.38
+- fixed iSNS issue that prevented IET from registering
+- fixed re-enabling listening after max connections was exceeded
+- fixed NULL-pointer dereference due to race in UA handling
+- fixed initd scripts to reflect pid file name change
+- fixed crypto API error handling
+- fixed small memory leak in volume args buffer on BSD platforms
+- fixed max_cmd_sn not being set for the session
+- fixed issue where StatSN was being updated when a command was ignored
+- fixed connection accounting in ietd for session reinstatements
+- MaxOutStandingR2T fixed at 1 for 1.4.20 branch due to broken handling
+- fixed ipv6 address handling in SendTargets
+
+               =========================================
+               Release Notes for iSCSI Enterprise Target
+               =========================================
+
                             July 14th, 2010
                             Version 1.4.20.2
                             ----------------

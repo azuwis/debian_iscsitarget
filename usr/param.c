@@ -78,20 +78,16 @@ static int bool_str_to_val(char *str, unsigned int *val)
 	return err;
 }
 
-static int or_set_val(struct iscsi_param *param, int idx, unsigned int *val)
+static void or_set_val(struct iscsi_param *param, int idx, unsigned int *val)
 {
 	*val |= param[idx].val;
 	param[idx].val = *val;
-
-	return 0;
 }
 
-static int and_set_val(struct iscsi_param *param, int idx, unsigned int *val)
+static void and_set_val(struct iscsi_param *param, int idx, unsigned int *val)
 {
 	*val &= param[idx].val;
 	param[idx].val = *val;
-
-	return 0;
 }
 
 static int minimum_check_val(struct iscsi_key *key, unsigned int *val)
@@ -118,35 +114,35 @@ static int maximum_check_val(struct iscsi_key *key, unsigned int *val)
 	return 0;
 }
 
-static int minimum_set_val(struct iscsi_param *param, int idx, unsigned int *val)
+static void minimum_set_val(struct iscsi_param *param, int idx, unsigned int *val)
 {
 	if (*val > param[idx].val)
 		*val = param[idx].val;
 	else
 		param[idx].val = *val;
-
-	return 0;
 }
 
-static int maximum_set_val(struct iscsi_param *param, int idx, unsigned int *val)
+static void maximum_set_val(struct iscsi_param *param, int idx, unsigned int *val)
 {
 	if (param[idx].val > *val)
 		*val = param[idx].val;
 	else
 		param[idx].val = *val;
-
-	return 0;
 }
 
 static int digest_val_to_str(unsigned int val, char *str)
 {
 	int err = 0;
 
-	if (val & DIGEST_CRC32C)
-		strcpy(str, "CRC32C");
-	else if (val & DIGEST_NONE)
+	if (val & DIGEST_NONE)
 		strcpy(str, "None");
-	else
+	if (val & DIGEST_CRC32C) {
+		if (strlen(str))
+			strcat(str, ",CRC32C");
+		else
+			strcpy(str, "CRC32C");
+	}
+	if (!strlen(str))
 		err = -EINVAL;
 
 	return err;
@@ -158,25 +154,23 @@ static int digest_str_to_val(char *str, unsigned int *val)
 	char *p, *q;
 	p = str;
 
-	*val = DIGEST_NONE;
+	*val = 0;
 	do {
-		if (!strncmp(p, "None", strlen("None")))
+		q = strsep(&p, ",");
+		if (!strcmp(q, "None"))
 			*val |= DIGEST_NONE;
-		else if (!strncmp(p, "CRC32C", strlen("CRC32C")))
+		else if (!strcmp(q, "CRC32C"))
 			*val |= DIGEST_CRC32C;
 		else {
 			err = -EINVAL;
 			break;
 		}
-
-		if ((q = strchr(p, ',')))
-			p = q + 1;
-	} while (q);
+	} while (p);
 
 	return err;
 }
 
-static int digest_set_val(struct iscsi_param *param, int idx, unsigned int *val)
+static void digest_set_val(struct iscsi_param *param, int idx, unsigned int *val)
 {
 	if (*val & DIGEST_CRC32C && param[idx].val & DIGEST_CRC32C)
 		*val = DIGEST_CRC32C;
@@ -184,8 +178,6 @@ static int digest_set_val(struct iscsi_param *param, int idx, unsigned int *val)
 		*val = DIGEST_NONE;
 
 	param[idx].val = *val;
-
-	return 0;
 }
 
 static int marker_val_to_str(unsigned int val, char *str)
@@ -198,7 +190,7 @@ static int marker_val_to_str(unsigned int val, char *str)
 	return 0;
 }
 
-static int marker_set_val(struct iscsi_param *param, int idx, unsigned int *val)
+static void marker_set_val(struct iscsi_param *param, int idx, unsigned int *val)
 {
 	if ((idx == key_ofmarkint && param[key_ofmarker].state == KEY_STATE_DONE) ||
 	    (idx == key_ifmarkint && param[key_ifmarker].state == KEY_STATE_DONE))
@@ -207,8 +199,6 @@ static int marker_set_val(struct iscsi_param *param, int idx, unsigned int *val)
 		*val = 1;
 
 	param[idx].val = *val;
-
-	return 0;
 }
 
 int param_val_to_str(struct iscsi_key *keys, int idx, unsigned int val, char *str)
@@ -235,13 +225,11 @@ int param_check_val(struct iscsi_key *keys, int idx, unsigned int *val)
 		return 0;
 }
 
-int param_set_val(struct iscsi_key *keys, struct iscsi_param *param,
+void param_set_val(struct iscsi_key *keys, struct iscsi_param *param,
 		  int idx, unsigned int *val2)
 {
 	if (keys[idx].ops->set_val)
-		return keys[idx].ops->set_val(param, idx, val2);
-	else
-		return 0;
+		keys[idx].ops->set_val(param, idx, val2);
 }
 
 static struct iscsi_key_ops minimum_ops = {

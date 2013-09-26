@@ -593,10 +593,8 @@ static int recv_pdu(int fd, struct isns_io *rx, struct isns_hdr *hdr)
 static char *print_scn_pdu(struct isns_hdr *hdr)
 {
 	struct isns_tlv *tlv = (struct isns_tlv *) hdr->pdu;
-	uint16_t function, length, flags, transaction, sequence;
+	uint16_t length = ntohs(hdr->length);
 	char *name = NULL;
-
-	get_hdr_param(hdr, function, length, flags, transaction, sequence);
 
 	while (length) {
 		uint32_t vlen = ntohl(tlv->length);
@@ -644,14 +642,13 @@ static char *print_scn_pdu(struct isns_hdr *hdr)
 static void qry_rsp_handle(struct isns_hdr *hdr)
 {
 	struct isns_tlv *tlv;
-	uint16_t function, length, flags, transaction, sequence;
+	uint16_t length = ntohs(hdr->length);
+	uint16_t transaction = ntohs(hdr->transaction);
 	uint32_t status = (uint32_t) (*hdr->pdu);
 	struct isns_qry_mgmt *mgmt, *n;
 	struct target *target;
 	struct isns_initiator *ini;
 	char *name = NULL;
-
-	get_hdr_param(hdr, function, length, flags, transaction, sequence);
 
 	list_for_each_entry_safe(mgmt, n, &qry_list, qlist) {
 		if (mgmt->transaction == transaction) {
@@ -751,8 +748,7 @@ int isns_handle(int is_timeout, int *timeout)
 	int err;
 	struct isns_io *rx = &isns_rx;
 	struct isns_hdr *hdr = (struct isns_hdr *) rx->buf;
-	uint32_t result;
-	uint16_t function, length, flags, transaction, sequence;
+	uint16_t function;
 	char *name = NULL;
 
 	if (is_timeout)
@@ -770,8 +766,7 @@ int isns_handle(int is_timeout, int *timeout)
 		return err;
 	}
 
-	get_hdr_param(hdr, function, length, flags, transaction, sequence);
-	result = ntohl((uint32_t) hdr->pdu[0]);
+	function = ntohs(hdr->function);
 
 	switch (function) {
 	case ISNS_FUNC_DEV_ATTR_REG_RSP:
@@ -852,7 +847,7 @@ int isns_scn_handle(int is_accept)
 	int err;
 	struct isns_io *rx = &scn_rx;
 	struct isns_hdr *hdr = (struct isns_hdr *) rx->buf;
-	uint16_t function, length, flags, transaction, sequence;
+	uint16_t function, transaction;
 	char *name = NULL;
 
 	log_error("%s %d: %d", __FUNCTION__, __LINE__, is_accept);
@@ -872,7 +867,8 @@ int isns_scn_handle(int is_accept)
 		return err;
 	}
 
-	get_hdr_param(hdr, function, length, flags, transaction, sequence);
+	function = ntohs(hdr->function);
+	transaction = ntohs(hdr->transaction);
 
 	switch (function) {
 	case ISNS_FUNC_SCN:

@@ -4,6 +4,8 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
+#include <linux/mutex.h>
+
 #include "iscsi.h"
 #include "digest.h"
 #include "iscsi_dbg.h"
@@ -11,7 +13,7 @@
 #define	MAX_NR_TARGETS	(1UL << 30)
 
 static LIST_HEAD(target_list);
-static DECLARE_MUTEX(target_list_sem);
+static DEFINE_MUTEX(target_list_mutex);
 static u32 next_target_id;
 static u32 nr_targets;
 
@@ -24,7 +26,7 @@ static struct iscsi_sess_param default_session_param = {
 	.max_burst_length = 262144,
 	.first_burst_length = 65536,
 	.default_wait_time = 2,
-	.default_retain_time = 20,
+	.default_retain_time = 0,
 	.max_outstanding_r2t = 1,
 	.data_pdu_inorder = 1,
 	.data_sequence_inorder = 1,
@@ -48,16 +50,16 @@ inline int target_lock(struct iscsi_target *target, int interruptible)
 	int err = 0;
 
 	if (interruptible)
-		err = down_interruptible(&target->target_sem);
+		err = mutex_lock_interruptible(&target->target_mutex);
 	else
-		down(&target->target_sem);
+		mutex_lock(&target->target_mutex);
 
 	return err;
 }
 
 inline void target_unlock(struct iscsi_target *target)
 {
-	up(&target->target_sem);
+	mutex_unlock(&target->target_mutex);
 }
 
 static struct iscsi_target *__target_lookup_by_id(u32 id)
@@ -86,9 +88,9 @@ struct iscsi_target *target_lookup_by_id(u32 id)
 {
 	struct iscsi_target *target;
 
-	down(&target_list_sem);
+	mutex_lock(&target_list_mutex);
 	target = __target_lookup_by_id(id);
-	up(&target_list_sem);
+	mutex_unlock(&target_list_mutex);
 
 	return target;
 }
@@ -157,7 +159,7 @@ static int iscsi_target_create(struct target_info *info, u32 tid)
 
 	strncpy(target->name, name, sizeof(target->name) - 1);
 
-	init_MUTEX(&target->target_sem);
+	mutex_init(&target->target_mutex);
 	spin_lock_init(&target->session_list_lock);
 
 	INIT_LIST_HEAD(&target->session_list);
@@ -195,7 +197,7 @@ int target_add(struct target_info *info)
 	u32 tid = info->tid;
 	int err;
 
-	err = down_interruptible(&target_list_sem);
+	err = mutex_lock_interruptible(&target_list_mutex);
 	if (err < 0)
 		return err;
 
@@ -204,7 +206,7 @@ int target_add(struct target_info *info)
 		goto out;
 	}
 
-	if (__target_lookup_by_name(info->name) || 
+	if (__target_lookup_by_name(info->name) ||
 			(tid && __target_lookup_by_id(tid))) {
 		err = -EEXIST;
 		goto out;
@@ -223,7 +225,7 @@ int target_add(struct target_info *info)
 	if (!err)
 		nr_targets++;
 out:
-	up(&target_list_sem);
+	mutex_unlock(&target_list_mutex);
 
 	return err;
 }
@@ -232,14 +234,14 @@ static void target_destroy(struct iscsi_target *target)
 {
 	dprintk(D_SETUP, "%u\n", target->tid);
 
-	target_thread_stop(target);
-
 	while (!list_empty(&target->volumes)) {
 		struct iet_volume *volume;
 		volume = list_entry(target->volumes.next, struct iet_volume, list);
 		volume->l_state = IDEV_DEL;
 		iscsi_volume_destroy(volume);
 	}
+
+	target_thread_stop(target);
 
 	if (!worker_thread_pool)
 		kfree(target->wthread_info);
@@ -248,7 +250,7 @@ static void target_destroy(struct iscsi_target *target)
 	module_put(THIS_MODULE);
 }
 
-/* @locking: target_list_sem must be locked */
+/* @locking: target_list_mutex must be locked */
 static int __target_del(struct iscsi_target *target)
 {
 	int err;
@@ -283,7 +285,7 @@ int target_del(u32 id)
 	struct iscsi_target *target;
 	int err;
 
-	err = down_interruptible(&target_list_sem);
+	err = mutex_lock_interruptible(&target_list_mutex);
 	if (err < 0)
 		return err;
 
@@ -295,7 +297,7 @@ int target_del(u32 id)
 
 	err = __target_del(target);
 out:
-	up(&target_list_sem);
+	mutex_unlock(&target_list_mutex);
 
 	return err;
 }
@@ -305,7 +307,7 @@ void target_del_all(void)
 	struct iscsi_target *target, *tmp;
 	int err;
 
-	down(&target_list_sem);
+	mutex_lock(&target_list_mutex);
 
 	if (!list_empty(&target_list))
 		iprintk("Removing all connections, sessions and targets\n");
@@ -319,7 +321,7 @@ void target_del_all(void)
 
 	next_target_id = 0;
 
-	up(&target_list_sem);
+	mutex_unlock(&target_list_mutex);
 }
 
 static void *iet_seq_start(struct seq_file *m, loff_t *pos)
@@ -327,7 +329,7 @@ static void *iet_seq_start(struct seq_file *m, loff_t *pos)
 	int err;
 
 	/* are you sure this is to be interruptible? */
-	err = down_interruptible(&target_list_sem);
+	err = mutex_lock_interruptible(&target_list_mutex);
 	if (err < 0)
 		return ERR_PTR(err);
 
@@ -341,7 +343,8 @@ static void *iet_seq_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void iet_seq_stop(struct seq_file *m, void *v)
 {
-	up(&target_list_sem);
+	if (PTR_ERR(v) != -EINTR)
+		mutex_unlock(&target_list_mutex);
 }
 
 static int iet_seq_show(struct seq_file *m, void *p)

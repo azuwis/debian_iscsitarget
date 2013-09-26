@@ -1,10 +1,17 @@
-Summary of changes from v1.4.20.1 to v1.4.20.2
+Summary of changes from v1.4.20 to Current
 =================================
 Arne Redlich
+  o adapt backward compat mechanism in Makefile to kernels >= 2.6.33
   o uninitialized data fixes pointed out by valgrind
   o fix invalid read in iSNS code pointed out by valgrind
+  o Fixed iSNS initialization issue, thanks to majianpeng@gmail.com
+  o The NIPQUAD macro has been removed, instead "%pI4" is used
+  o Converted semaphores to mutexes
+  o Fixed printing IPv4 addresses in /proc/net/iet/session for kernels >= 2.6.33
+  o Fixed block device handling for kernels >= 2.6.38
 
 Ross Walker
+  o restore SCSI SN behaviour of IET < 1.4.20 (VMWare compatibility)
   o check buffer boundaries in iSNS code (CVE-2010-2221)
   o fix memleak in iSNS ACL code
   o clean up iSCSI login response error handling
@@ -12,15 +19,33 @@ Ross Walker
   o fix soft lockup during UA allocation
   o change DISTDIR to DESTDIR
   o avoid deletion of targets with active sessions
-  o byte swap fix in MD5 / SHA1 code (thanks to Harshal Shete for testing on PPC)
+  o byte swap fix in MD5 / SHA1 code
+  o Updated initd scripts to reflect PID file name change
+  o Removed stray RPM build dependency on openssl from spec file
+  o Fixed crypto API error handling (ERR_PTR instead of a NULL)
+  o Fixed small memory leak in volume args buffer on BSD
+  o Fixed io context handling on kernels >= 2.6.25
+  o Fixed max_cmd_sn not being set for the session
+  o Fixed issue where StatSN was being updated when a command was ignored
+  o Fixed connection accounting in ietd for session reinstatements
+  o Fixed MaxOutStandingR2T handling
+  o Stripped zone id off ipv6 addresses in SendTargets
+  o Time2Retain fixed at 0 since it isn't implemented
 
-Summary of changes from v1.4.20 to v1.4.20.1
-=================================
-Arne Redlich
-  o adapt backward compat mechanism in Makefile to kernels >= 2.6.33
+Chris Siebenmann, Wido den Hollander
+  o 2.6.36 compile fix
 
-Ross Walker
-  o restore SCSI SN behaviour of IET < 1.4.20 (VMWare compatibility)
+Craig
+  o Makefile respects LDFLAGS
+
+Jason Zhang
+  o Fixed re-enabling listening after max connections was exceeded
+  o Fix NULL-pointer dereference due to race in UA handling
+
+Martin Hicks
+  o Added variable for depmod
+  o Don't install kernel module executable
+  o Don't use bash for initd script
 
 Summary of changes from v1.4.19 to v1.4.20
 =================================

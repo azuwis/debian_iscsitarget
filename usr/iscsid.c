@@ -273,43 +273,6 @@ static void text_scan_security(struct connection *conn)
 		login_rsp_ini_err(conn, ISCSI_STATUS_AUTH_FAILED);
 }
 
-static void login_security_done(struct connection *conn)
-{
-	struct iscsi_login_req_hdr *req =
-				(struct iscsi_login_req_hdr *)&conn->req.bhs;
-	struct session *session;
-
-	if (!conn->tid)
-		return;
-
-	if ((session = session_find_name(conn->tid, conn->initiator, req->sid))) {
-		if (!req->sid.id.tsih) {
-			/* do session reinstatement */
-			log_debug(1, "session %#" PRIx64 " reinstated",
-								req->sid.id64);
-			if (session_remove(session))
-				login_rsp_tgt_err(conn, ISCSI_STATUS_TARGET_ERROR);
-			return;
-		} else if (req->sid.id.tsih != session->sid.id.tsih) {
-			/* fail the login */
-			login_rsp_ini_err(conn, ISCSI_STATUS_SESSION_NOT_FOUND);
-			return;
-		}
-		/* add connection to existing session */
-		/* reinstatement handled in kernel */
-		log_debug(1, "connection %u added to session %#" PRIx64,
-						conn->cid, req->sid.id64);
-		conn->session = session;
-	} else {
-		if (req->sid.id.tsih) {
-			/* fail the login */
-			login_rsp_ini_err(conn, ISCSI_STATUS_SESSION_NOT_FOUND);
-			return;
-		}
-		/* instantiate a new session */
-	}
-}
-
 static void text_scan_login(struct connection *conn)
 {
 	char *key, *value, *data;
@@ -345,7 +308,7 @@ static void text_scan_login(struct connection *conn)
 			}
 
 			err = param_check_val(session_keys, idx, &val);
-			err = param_set_val(session_keys, conn->session_param, idx, &val);
+			param_set_val(session_keys, conn->session_param, idx, &val);
 
 			switch (conn->session_param[idx].state) {
 			case KEY_STATE_START:
@@ -423,7 +386,7 @@ static void login_start(struct connection *conn)
 	struct iscsi_login_req_hdr *req =
 				(struct iscsi_login_req_hdr *)&conn->req.bhs;
 
-	char *name, *alias, *session_type, *target_name;
+	char *name, *session_type, *target_name;
 	struct sockaddr_storage ss;
 	socklen_t slen = sizeof(struct sockaddr_storage);
 
@@ -442,7 +405,6 @@ static void login_start(struct connection *conn)
 		return;
 	}
 	conn->initiator = strdup(name);
-	alias = text_key_find(conn, "InitiatorAlias");
 	session_type = text_key_find(conn, "SessionType");
 	target_name = text_key_find(conn, "TargetName");
 
@@ -490,8 +452,10 @@ static void login_start(struct connection *conn)
 
 		conn->tid = target->tid;
 
+		++target->nr_sessions;
+
 		if (target->max_nr_sessions &&
-		    (++target->nr_sessions > target->max_nr_sessions)) {
+		    (target->nr_sessions > target->max_nr_sessions)) {
 			--target->nr_sessions;
 			log_debug(1, "rejecting session for target '%s': "
 				  "too many sessions", target_name);
@@ -510,14 +474,44 @@ static void login_start(struct connection *conn)
 
 static void login_finish(struct connection *conn)
 {
+	struct iscsi_login_req_hdr *req =
+			(struct iscsi_login_req_hdr *)&conn->req.bhs;
+	struct session *session =
+			session_find_name(conn->tid, conn->initiator, req->sid);
+
 	switch (conn->session_type) {
 	case SESSION_NORMAL:
+		if (session) {
+			if (!req->sid.id.tsih) {
+				/* session reinstatement */
+				log_debug(1, "session %#" PRIx64 " reinstated",
+					req->sid.id64);
+				if (session_remove(session)) {
+					login_rsp_tgt_err(conn,
+						ISCSI_STATUS_TARGET_ERROR);
+					return;
+				}
+				session = NULL;
+			} else if (req->sid.id.tsih != session->sid.id.tsih) {
+				/* fail the login */
+				login_rsp_ini_err(conn,
+					ISCSI_STATUS_SESSION_NOT_FOUND);
+				return;
+			}
+			/* add connection to existing session */
+			log_debug(1, "connection %u added to session %#" PRIx64,
+				conn->cid, req->sid.id64);
+			conn->session = session;
+		} else if (req->sid.id.tsih) {
+			/* fail the login */
+			login_rsp_ini_err(conn, ISCSI_STATUS_SESSION_NOT_FOUND);
+			return;
+		}
 		/* create or re-create in case the session closed */
 		if (session_create(conn)) {
 			login_rsp_tgt_err(conn, ISCSI_STATUS_TARGET_ERROR);
 			return;
 		}
-		conn->sid = conn->session->sid;
 		break;
 	case SESSION_DISCOVERY:
 		/* set a dummy tsih value */
@@ -680,7 +674,6 @@ static void cmnd_exec_login(struct connection *conn)
 			case STATE_SECURITY:
 			case STATE_SECURITY_DONE:
 				conn->state = STATE_SECURITY_LOGIN;
-				login_security_done(conn);
 				break;
 			default:
 				goto init_err;
@@ -696,7 +689,6 @@ static void cmnd_exec_login(struct connection *conn)
 					break;
 				}
 				conn->state = STATE_SECURITY_FULL;
-				login_security_done(conn);
 				break;
 			case STATE_LOGIN:
 				if (stay)

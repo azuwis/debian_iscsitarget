@@ -24,30 +24,21 @@ static int fileio_make_request(struct iet_volume *lu, struct tio *tio, int rw)
 	struct file *filp;
 	mm_segment_t oldfs;
 	struct page *page;
-	u32 offset, size;
-	loff_t ppos, count;
+	loff_t ppos;
 	char *buf;
 	int i, err = 0;
-	ssize_t ret;
+	u32 count, size, ret;
 
 	assert(p);
 	filp = p->filp;
 	size = tio->size;
-	offset= tio->offset;
+	ppos = tio->offset;
 
-	ppos = (loff_t) tio->idx << PAGE_CACHE_SHIFT;
-	ppos += offset;
-
-	for (i = 0; i < tio->pg_cnt; i++) {
+	for (i = 0; i < tio->pg_cnt && size; i++) {
 		page = tio->pvec[i];
 		assert(page);
 		buf = page_address(page);
-		buf += offset;
-
-		if (offset + size > PAGE_CACHE_SIZE)
-			count = PAGE_CACHE_SIZE - offset;
-		else
-			count = size;
+		count = min_t(u32, PAGE_CACHE_SIZE, size);
 
 		oldfs = get_fs();
 		set_fs(get_ds());
@@ -60,14 +51,17 @@ static int fileio_make_request(struct iet_volume *lu, struct tio *tio, int rw)
 		set_fs(oldfs);
 
 		if (ret != count) {
-			eprintk("I/O error %lld, %ld\n", count, (long) ret);
+			eprintk("I/O error %u, %ld\n", count, (long) ret);
 			err = -EIO;
+			break;
 		}
 
 		size -= count;
-		offset = 0;
 	}
-	assert(!size);
+
+	if (!err) {
+		assert(!size);
+	}
 
 	return err;
 }
@@ -81,8 +75,7 @@ static int fileio_sync(struct iet_volume *lu, struct tio *tio)
 	int res;
 
 	if (tio) {
-		ppos = (loff_t) tio->idx << PAGE_CACHE_SHIFT;
-		ppos += tio->offset;
+		ppos = tio->offset;
 		count = tio->size;
 	} else {
 		ppos = 0;

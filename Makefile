@@ -9,6 +9,8 @@
 
 #export KSRC := /usr/src/linux
 
+DEPMOD = depmod
+
 SUBDIRS := $(shell pwd)
 
 ifeq ($(KSRC),)
@@ -26,7 +28,7 @@ else
   endif
 endif
 
-KVER := $(shell $(CC) $(CFLAGS) -E -dM $(VERSION_FILE) | \
+KVER := $(shell $(CC) $(CFLAGS) $(LDFLAGS) -E -dM $(VERSION_FILE) | \
 	grep UTS_RELEASE | awk '{ print $$3 }' | sed 's/\"//g')
 
 KMOD := /lib/modules/$(KVER)/extra
@@ -38,15 +40,23 @@ KMIN := $(shell echo $(KVER) | \
 KREV := $(shell echo $(KVER) | \
 	sed -e 's/^[0-9][0-9]*\.[0-9][0-9]*\.\([0-9][0-9]*\).*/\1/')
 
-kver_eq = $(shell [ $(KMAJ)$(KMIN)$(KREV) -eq $(1)$(2)$(3) ] && \
+kver_eq = $(shell [ $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -eq $(3) ] && \
 	echo 1 || echo 0)
-kver_lt = $(shell [ $(KMAJ)$(KMIN)$(KREV) -lt $(1)$(2)$(3) ] && \
+kver_lt = $(shell [ $(KMAJ) -lt $(1) -o \
+	$(KMAJ) -eq $(1) -a $(KMIN) -lt $(2) -o \
+        $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -lt $(3) ] && \
 	echo 1 || echo 0)
-kver_le = $(shell [ $(KMAJ)$(KMIN)$(KREV) -le $(1)$(2)$(3) ] && \
+kver_le = $(shell [ $(KMAJ) -lt $(1) -o \
+        $(KMAJ) -eq $(1) -a $(KMIN) -lt $(2) -o \
+        $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -le $(3) ] && \
 	echo 1 || echo 0)
-kver_gt = $(shell [ $(KMAJ)$(KMIN)$(KREV) -gt $(1)$(2)$(3) ] && \
+kver_gt = $(shell [ ( $(KMAJ) -gt $(1) ) -o \
+        $(KMAJ) -eq $(1) -a $(KMIN) -gt $(2) -o \
+        $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -gt $(3) ] && \
 	echo 1 || echo 0)
-kver_ge = $(shell [ $(KMAJ)$(KMIN)$(KREV) -ge $(1)$(2)$(3) ] && \
+kver_ge = $(shell [ ( $(KMAJ) -gt $(1) ) -o \
+        $(KMAJ) -eq $(1) -a $(KMIN) -gt $(2) -o \
+        $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -ge $(3) ] && \
 	echo 1 || echo 0)
 kver_lk = $(shell [ `echo $(KVER) | egrep $(1)` ] && echo 1 || echo 0)
 
@@ -55,6 +65,39 @@ kver_lk = $(shell [ `echo $(KVER) | egrep $(1)` ] && echo 1 || echo 0)
 # the idea behind this is that by properly patching the latest code
 # base first the earlier patch sets will not need to be modified.
 #
+
+ifeq ($(call kver_lt,3,10,0),1)
+	PATCHES := $(PATCHES) compat-3.9.patch
+endif
+
+ifeq ($(call kver_lt,3,7,0),1)
+	PATCHES := $(PATCHES) compat-3.6.patch
+endif
+
+ifeq ($(call kver_le,3,5,0),1)
+	PATCHES := $(PATCHES) compat-3.5.patch
+endif
+
+ifeq ($(call kver_le,3,4,0),1)
+	PATCHES := $(PATCHES) compat-3.2-3.4.patch
+endif
+
+ifeq ($(call kver_le,3,2,0),1)
+	PATCHES := $(PATCHES) compat-2.6.39-3.2.patch
+endif
+
+ifeq ($(call kver_le,2,6,38),1)
+	PATCHES := $(PATCHES) compat-2.6.38.patch
+endif
+
+ifeq ($(call kver_le,2,6,37),1)
+	PATCHES := $(PATCHES) compat-2.6.36-2.6.37.patch
+endif
+
+# Compatibility patch for kernels > 2.6.32 <= 2.6.35
+ifeq ($(call kver_le,2,6,35),1)
+	PATCHES := $(PATCHES) compat-2.6.33-2.6.35.patch
+endif
 
 # Compatibility patch for kernels <= 2.6.32
 ifeq ($(call kver_le,2,6,32),1)
@@ -210,9 +253,9 @@ unpatch:
 depmod:
 	@echo "Running depmod"
 	@if [ x$(DESTDIR) != x -o x$(INSTALL_MOD_PATH) != x ]; then \
-		depmod -aq -b $(DESTDIR)$(INSTALL_MOD_PATH) $(KVER); \
+		$(DEPMOD) -aq -b $(DESTDIR)$(INSTALL_MOD_PATH) $(KVER); \
 	else \
-		depmod -aq $(KVER); \
+		$(DEPMOD) -aq $(KVER); \
 	fi
 
 install-files: install-usr install-etc install-doc install-kernel
@@ -231,7 +274,7 @@ install-kernel: kernel/iscsi_trgt.ko
 				-execdir mv \{\} \{\}.orig \;; \
 		fi \
 	fi
-	@install -vD kernel/iscsi_trgt.ko \
+	@install -vD -m 644 kernel/iscsi_trgt.ko \
 		$(DESTDIR)$(INSTALL_MOD_PATH)$(KMOD)/iscsi/iscsi_trgt.ko
 
 install-usr: usr/ietd usr/ietadm
@@ -349,4 +392,3 @@ distclean: unpatch clean
 	find . -name \*.rej -exec rm -f \{\} \;
 	find . -name \*~ -exec rm -f \{\} \;
 	find . -name Module.symvers -exec rm -f \{\} \;
-

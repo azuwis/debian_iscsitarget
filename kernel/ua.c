@@ -126,8 +126,8 @@ void ua_establish_for_session(struct iscsi_session *sess, u32 lun,
 	/* One UA per occurrence of an event */
 	list_for_each_entry(e, l, entry) {
 		if (e->session == sess && e->lun == lun &&
-				e->asc == asc && e->ascq == ascq &&
-				e->session->exp_cmd_sn == sess->exp_cmd_sn) {
+		    e->asc == asc && e->ascq == ascq &&
+		    e->session->exp_cmd_sn == sess->exp_cmd_sn) {
 			spin_unlock(&sess->ua_hash_lock);
 			ua_free(ua);
 			return;

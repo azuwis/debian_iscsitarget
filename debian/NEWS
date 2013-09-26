@@ -1,3 +1,15 @@
+iscsitarget (1.4.20.3+svn490-1) experimental; urgency=low
+
+  With this upload, the iscsitarget package will be targetted from the
+  upstream "trunk" development branch. iscsitarget has not see a stable
+  release in the last 2 years and most of the active changes (usually
+  the kernel fixes) take place in the trunk branch.
+
+  If you want to stick with the "stable branch, please stick to the
+  Debian Wheezy release
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 12 Apr 2013 13:17:41 +0530
+
 iscsitarget (1.4.20.1-2) unstable; urgency=low
 
   The following conf file have changed locations from /etc/ to /etc/iet/

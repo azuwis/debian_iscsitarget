@@ -2,7 +2,7 @@ Index: kernel/iscsi.h
 ===================================================================
 --- 1/kernel/iscsi.h	(revision 105)
 +++ 2/kernel/iscsi.h	(working copy)
-@@ -261,8 +261,8 @@ struct iscsi_conn {
+@@ -260,8 +260,8 @@ struct iscsi_conn {
  	u32 write_offset;
  	int write_state;
  
@@ -199,17 +199,6 @@ Index: kernel/tio.c
  
  struct tio *tio_alloc(int count)
  {
---- context/kernel/wthread.c	2010-01-25 11:27:57.000000000 -0500
-+++ context/kernel/wthread.c.18	2010-01-25 11:25:43.000000000 -0500
-@@ -67,7 +67,7 @@
- 	struct iscsi_conn *conn;
- 	DECLARE_WAITQUEUE(wait, current);
- 
--	get_io_context(GFP_KERNEL, -1);
-+	get_io_context(GFP_KERNEL);
- 
- 	if (!current->io_context)
- 		eprintk("%s\n", "Failed to get IO context");
 --- param/kernel/volume.c	2010-04-08 18:05:38.000000000 -0400
 +++ param/kernel/volume.c.18	2010-04-08 18:05:38.000000000 -0400
 @@ -84,28 +84,26 @@ static int set_scsisn(struct iet_volume 
@@ -223,7 +212,7 @@ Index: kernel/tio.c
 -	hash.flags = 0;
 +	tfm = crypto_alloc_tfm("md5", 0);
  
--	if (hash.tfm) {
+-	if (!IS_ERR(hash.tfm)) {
 +	if (tfm) {
  		struct scatterlist sg[2];
 -		unsigned int nbytes = 0;
@@ -250,3 +239,14 @@ Index: kernel/tio.c
  	} else {
  		/* If no MD5 available set ID to TID and LUN */
  		memcpy(volume->scsi_id, &volume->target->tid,
+--- ioc/kernel/wthread.c	2011-04-12 19:50:49.000000000 -0400
++++ ioc/kernel/wthread.c	2011-04-12 19:51:29.000000000 -0400
+@@ -68,7 +68,7 @@ static int worker_thread(void *arg)
+ 	DECLARE_WAITQUEUE(wait, current);
+ 
+ 	if (!current->io_context)
+-		get_io_context(GFP_KERNEL, -1);
++		get_io_context(GFP_KERNEL);
+ 
+ 	add_wait_queue(&info->wthread_sleep, &wait);
+ 

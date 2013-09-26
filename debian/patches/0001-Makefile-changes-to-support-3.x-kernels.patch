@@ -1,0 +1,50 @@
+From 4c3800c953722c6c39d0b47dc87289ed63c34aa8 Mon Sep 17 00:00:00 2001
+From: agr1 <agr1@48a34bb2-7106-0410-bc49-8aa7273d22a1>
+Date: Sat, 3 Sep 2011 11:51:08 +0000
+Subject: [PATCH 1/3] Makefile changes to support 3.x kernels
+
+This patch was provided by Leho Kraav
+
+Signed-off-by: Arne Redlich <arne.redlich@googlemail.com>
+
+git-svn-id: https://iscsitarget.svn.sourceforge.net/svnroot/iscsitarget/branches/1.4.20@454 48a34bb2-7106-0410-bc49-8aa7273d22a1
+---
+ Makefile |   18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 02ba273..b47f689 100644
+--- a/Makefile
++++ b/Makefile
+@@ -40,15 +40,23 @@ KMIN := $(shell echo $(KVER) | \
+ KREV := $(shell echo $(KVER) | \
+ 	sed -e 's/^[0-9][0-9]*\.[0-9][0-9]*\.\([0-9][0-9]*\).*/\1/')
+ 
+-kver_eq = $(shell [ $(KMAJ)$(KMIN)$(KREV) -eq $(1)$(2)$(3) ] && \
++kver_eq = $(shell [ $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -eq $(3) ] && \
+ 	echo 1 || echo 0)
+-kver_lt = $(shell [ $(KMAJ)$(KMIN)$(KREV) -lt $(1)$(2)$(3) ] && \
++kver_lt = $(shell [ $(KMAJ) -lt $(1) -o \
++	$(KMAJ) -eq $(1) -a $(KMIN) -lt $(2) -o \
++        $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -lt $(3) ] && \
+ 	echo 1 || echo 0)
+-kver_le = $(shell [ $(KMAJ)$(KMIN)$(KREV) -le $(1)$(2)$(3) ] && \
++kver_le = $(shell [ $(KMAJ) -lt $(1) -o \
++        $(KMAJ) -eq $(1) -a $(KMIN) -lt $(2) -o \
++        $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -le $(3) ] && \
+ 	echo 1 || echo 0)
+-kver_gt = $(shell [ $(KMAJ)$(KMIN)$(KREV) -gt $(1)$(2)$(3) ] && \
++kver_gt = $(shell [ ( $(KMAJ) -gt $(1) ) -o \
++        $(KMAJ) -eq $(1) -a $(KMIN) -gt $(2) -o \
++        $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -gt $(3) ] && \
+ 	echo 1 || echo 0)
+-kver_ge = $(shell [ $(KMAJ)$(KMIN)$(KREV) -ge $(1)$(2)$(3) ] && \
++kver_ge = $(shell [ ( $(KMAJ) -gt $(1) ) -o \
++        $(KMAJ) -eq $(1) -a $(KMIN) -gt $(2) -o \
++        $(KMAJ) -eq $(1) -a $(KMIN) -eq $(2) -a $(KREV) -ge $(3) ] && \
+ 	echo 1 || echo 0)
+ kver_lk = $(shell [ `echo $(KVER) | egrep $(1)` ] && echo 1 || echo 0)
+ 
+-- 
+1.7.10.4
+

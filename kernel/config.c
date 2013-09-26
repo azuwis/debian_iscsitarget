@@ -9,7 +9,7 @@
 #include "iscsi.h"
 #include "iscsi_dbg.h"
 
-static DECLARE_MUTEX(ioctl_sem);
+static DEFINE_MUTEX(ioctl_mutex);
 
 struct proc_entries {
 	const char *name;
@@ -34,7 +34,7 @@ void iet_procfs_exit(void)
 	for (i = 0; i < ARRAY_SIZE(iet_proc_entries); i++)
 		remove_proc_entry(iet_proc_entries[i].name, proc_iet_dir);
 
-	remove_proc_entry(proc_iet_dir->name, proc_iet_dir->parent);
+	proc_remove(proc_iet_dir);
 }
 
 int iet_procfs_init(void)
@@ -46,10 +46,9 @@ int iet_procfs_init(void)
 		goto err;
 
 	for (i = 0; i < ARRAY_SIZE(iet_proc_entries); i++) {
-		ent = create_proc_entry(iet_proc_entries[i].name, 0, proc_iet_dir);
-		if (ent)
-			ent->proc_fops = iet_proc_entries[i].fops;
-		else
+		ent = proc_create(iet_proc_entries[i].name, 0, proc_iet_dir,
+                          iet_proc_entries[i].fops);
+		if (!ent)
 			goto err;
 	}
 
@@ -258,7 +257,7 @@ static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	long err;
 	u32 id;
 
-	err = down_interruptible(&ioctl_sem);
+	err = mutex_lock_interruptible(&ioctl_mutex);
 	if (err < 0)
 		return err;
 
@@ -339,7 +338,7 @@ static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	target_unlock(target);
 done:
-	up(&ioctl_sem);
+	mutex_unlock(&ioctl_mutex);
 
 	return err;
 }
@@ -347,9 +346,9 @@ done:
 static int release(struct inode *i __attribute__((unused)),
 		   struct file *f __attribute__((unused)))
 {
-	down(&ioctl_sem);
+	mutex_lock(&ioctl_mutex);
 	target_del_all();
-	up(&ioctl_sem);
+	mutex_unlock(&ioctl_mutex);
 
 	return 0;
 }

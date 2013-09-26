@@ -322,8 +322,9 @@ static int netmask_match(struct sockaddr *sa1, struct sockaddr *sa2, char *buf)
 	uint32_t mbit;
 	uint8_t family = sa1->sa_family;
 
+	errno = 0;
 	mbit = strtoul(buf, NULL, 0);
-	if (mbit < 0 ||
+	if ((mbit == ULONG_MAX && errno != 0) ||
 	    (family == AF_INET && mbit > 31) ||
 	    (family == AF_INET6 && mbit > 127))
 		return 0;
@@ -691,10 +692,12 @@ static int iscsi_param_partial_set(u32 tid, u64 sid, int type, int key, u32 val)
 	return __plain_param_set(tid, sid, type, 1 << key, param, 0);
 }
 
-static void plain_portal_init(FILE *fp, char **isns, int *isns_ac)
+static void plain_portal_init(FILE *fp, int *timeout)
 {
 	char buf[BUFSIZE];
 	char *p, *q;
+	char *isns = NULL;
+	int isns_ac = 0;
 
 	while (fgets(buf, BUFSIZE, fp)) {
 		q = buf;
@@ -702,15 +705,16 @@ static void plain_portal_init(FILE *fp, char **isns, int *isns_ac)
 		if (!p || *p == '#')
 			continue;
 		if (!strcasecmp(p, "iSNSServer")) {
-			*isns = strdup(target_sep_string(&q));
+			isns = strdup(target_sep_string(&q));
 		} else if (!strcasecmp(p, "iSNSAccessControl")) {
 			char *str = target_sep_string(&q);
 			if (!strcasecmp(str, "Yes"))
-				*isns_ac = 1;
+				isns_ac = 1;
 		}
 	}
 
-	return;
+	if (isns)
+		*timeout = isns_init(isns, isns_ac);
 }
 
 static void plain_target_init(FILE *fp)
@@ -796,7 +800,7 @@ static void plain_account_init(FILE *fp)
 	return;
 }
 
-static void plain_init(char *params, char **isns, int *isns_ac)
+static void plain_init(char *params, int *timeout)
 {
 	FILE *fp;
 	struct stat st;
@@ -826,7 +830,7 @@ static void plain_init(char *params, char **isns, int *isns_ac)
 		}
 	}
 
-	plain_portal_init(fp, isns, isns_ac);
+	plain_portal_init(fp, timeout);
 
 	rewind(fp);
 

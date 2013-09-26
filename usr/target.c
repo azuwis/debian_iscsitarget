@@ -78,6 +78,9 @@ static void target_print_addr(struct connection *conn, char *addr, int family)
 {
 	char taddr[NI_MAXHOST + NI_MAXSERV + 5];
 
+	/* strip ipv6 zone id */
+	addr = strsep(&addr, "%");
+
 	snprintf(taddr, sizeof(taddr),
 		(family == AF_INET) ? "%s:%d,1" : "[%s]:%d,1",
 							addr, server_port);

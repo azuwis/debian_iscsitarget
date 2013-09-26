@@ -1,4 +1,5 @@
 ISCSITARGET_ENABLE=false
+ISCSITARGET_MAX_SLEEP=3
 
 
 # ietd options

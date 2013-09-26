@@ -29,7 +29,7 @@
 #define CONFIG_H
 
 struct config_operations {
-	void (*init) (char *, char **, int *);
+	void (*init) (char *params, int *timeout);
 	int (*target_add) (u32 *, char *);
 	int (*target_stop) (u32);
 	int (*target_del) (u32);

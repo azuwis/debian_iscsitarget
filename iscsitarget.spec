@@ -3,7 +3,7 @@
 ##
 
 ## IET Release
-%define iet_version 1.4.20.2
+%define iet_version trunk
 
 ## Package Revision
 %define revision 1
@@ -113,7 +113,7 @@ Requires: %{name}-kmod = %{version}
 
 ## Build Requirements
 BuildRequires: kernel >= 2.6
-BuildRequires: gcc, make, patch, binutils, /usr/bin/install, openssl-devel
+BuildRequires: gcc, make, patch, binutils, /usr/bin/install
 %if %is_suse
 BuildRequires: kernel-source = %{kver}
 %else
@@ -408,6 +408,9 @@ fi
 
 
 %changelog
+* Mon Jan 10 2011 Ross Walker <rswwalker at gmail dot com> - 1.4.20.3
+- removed stray RPM build dependency on openssl
+
 * Tue May 11 2010 Ross Walker <rswwalker at gmail dot com> - 1.4.20.2
 - fixed recursive KERNELSRC define problem on SLES
 - updated SVN building to handle tagged builds

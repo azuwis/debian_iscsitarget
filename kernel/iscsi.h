@@ -9,6 +9,7 @@
 #define __ISCSI_H__
 
 #include <linux/blkdev.h>
+#include <linux/module.h>
 #include <linux/completion.h>
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
@@ -20,6 +21,7 @@
 #include "iscsi_hdr.h"
 #include "iet_u.h"
 #include "compat.h"
+#include "persist.h"
 
 #define IET_SENSE_BUF_SIZE      18
 
@@ -53,16 +55,22 @@ struct iscsi_trgt_param {
 	int nop_timeout;
 };
 
+/* target io */
 struct tio {
-	u32 pg_cnt;
+       loff_t offset; /* byte offset on target */
+       u32 size; /* total io bytes */
 
-	pgoff_t idx;
-	u32 offset;
+       u32 pg_cnt; /* total page count */
+       struct page **pvec; /* array of pages holding data */
+
+       atomic_t count; /* ref count */
+};
+
+struct tio_iterator {
+	struct tio *tio;
 	u32 size;
-
-	struct page **pvec;
-
-	atomic_t count;
+	u32 pg_idx;
+	u32 pg_off;
 };
 
 struct network_thread_info {
@@ -130,7 +138,7 @@ struct iscsi_target {
 	/* Points either to own list or global pool */
 	struct worker_thread_info * wthread_info;
 
-	struct semaphore target_sem;
+	struct mutex target_mutex;
 };
 
 struct iscsi_queue {
@@ -157,7 +165,7 @@ struct iet_volume {
 	u32 blk_shift;
 	u64 blk_cnt;
 
-	u64 reserve_sid;
+	struct reservation reservation;
 	spinlock_t reserve_lock;
 
 	unsigned long flags;
@@ -212,6 +220,7 @@ struct iscsi_session {
 	struct list_head ua_hash[UA_HASH_LEN];
 
 	u32 next_ttt;
+
 };
 
 enum connection_state_bit {
@@ -296,6 +305,7 @@ struct iscsi_cmnd {
 
 	u32 r2t_sn;
 	u32 r2t_length;
+	u32 exp_offset;
 	u32 is_unsolicited_data;
 	u32 target_task_tag;
 	u32 outstanding_r2t;
@@ -334,6 +344,8 @@ extern void send_scsi_rsp(struct iscsi_cmnd *, void (*)(struct iscsi_cmnd *));
 extern void iscsi_cmnd_set_sense(struct iscsi_cmnd *, u8 sense_key, u8 asc,
 				 u8 ascq);
 extern void send_nop_in(struct iscsi_conn *);
+extern u32 translate_lun(u16 *data);
+extern void __cmnd_abort(struct iscsi_cmnd *cmnd);
 
 /* conn.c */
 extern struct iscsi_conn *conn_lookup(struct iscsi_session *, u16);
@@ -379,6 +391,7 @@ extern struct file_operations session_seq_fops;
 extern struct iscsi_session *session_lookup(struct iscsi_target *, u64);
 extern int session_add(struct iscsi_target *, struct session_info *);
 extern int session_del(struct iscsi_target *, u64);
+extern void session_abort_tasks(struct iscsi_session *, u32 lun);
 
 /* volume.c */
 extern struct file_operations volume_seq_fops;
@@ -390,7 +403,7 @@ extern struct iet_volume *volume_get(struct iscsi_target *, u32);
 extern void volume_put(struct iet_volume *);
 extern int volume_reserve(struct iet_volume *volume, u64 sid);
 extern int volume_release(struct iet_volume *volume, u64 sid, int force);
-extern int is_volume_reserved(struct iet_volume *volume, u64 sid);
+extern int is_volume_reserved(struct iet_volume *volume, u64 sid, u8 *scb);
 
 /* tio.c */
 extern int tio_init(void);
@@ -402,6 +415,13 @@ extern void tio_set(struct tio *, u32, loff_t);
 extern int tio_read(struct iet_volume *, struct tio *);
 extern int tio_write(struct iet_volume *, struct tio *);
 extern int tio_sync(struct iet_volume *, struct tio *);
+
+extern void tio_init_iterator(struct tio *tio,
+			      struct tio_iterator *iter);
+
+extern size_t tio_add_data(struct tio_iterator *iter,
+			   const u8 *data,
+			   size_t len);
 
 /* iotype.c */
 extern struct iotype *get_iotype(const char *name);
@@ -433,7 +453,7 @@ void ua_establish_for_other_sessions(struct iscsi_session *, u32 lun, u8 asc,
 void ua_establish_for_all_sessions(struct iscsi_target *, u32 lun, u8 asc,
 				   u8 ascq);
 
-#define get_pgcnt(size, offset)	((((size) + ((offset) & ~PAGE_CACHE_MASK)) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT)
+#define get_pgcnt(size)	(((size) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT)
 
 static inline void iscsi_cmnd_get_length(struct iscsi_pdu *pdu)
 {
@@ -467,6 +487,9 @@ static inline void iscsi_cmnd_set_length(struct iscsi_pdu *pdu)
 #define cmnd_scsicode(cmnd) cmnd_hdr(cmnd)->scb[0]
 #define cmnd_immediate(cmnd) ((cmnd)->pdu.bhs.opcode & ISCSI_OP_IMMEDIATE)
 
+#define PAD_TO_4_BYTES(n)				\
+	(((n) + 3) & -4)
+
 /* default and maximum scsi level block sizes */
 #define IET_DEF_BLOCK_SIZE	512
 #define IET_MAX_BLOCK_SIZE	4096
@@ -477,6 +500,7 @@ enum cmnd_flags {
 	CMND_final,
 	CMND_waitio,
 	CMND_close,
+	CMND_closeit,
 	CMND_lunit,
 	CMND_pending,
 	CMND_tmfabort,
@@ -498,6 +522,9 @@ enum cmnd_flags {
 
 #define set_cmnd_close(cmnd)	set_bit(CMND_close, &(cmnd)->flags)
 #define cmnd_close(cmnd)	test_bit(CMND_close, &(cmnd)->flags)
+
+#define set_cmnd_closeit(cmnd)	set_bit(CMND_closeit, &(cmnd)->flags)
+#define cmnd_closeit(cmnd)	test_bit(CMND_closeit, &(cmnd)->flags)
 
 #define set_cmnd_lunit(cmnd)	set_bit(CMND_lunit, &(cmnd)->flags)
 #define cmnd_lunit(cmnd)	test_bit(CMND_lunit, &(cmnd)->flags)

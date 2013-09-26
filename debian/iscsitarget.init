@@ -19,6 +19,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 . /lib/lsb/init-functions # log_{warn,failure}_msg
 
 ISCSITARGET_ENABLE=false
+ISCSITARGET_MAX_SLEEP=3
 ISCSITARGET_DEFAULTS_FILE=/etc/default/iscsitarget
 if [ -s "$ISCSITARGET_DEFAULTS_FILE" ]; then
     . "$ISCSITARGET_DEFAULTS_FILE"
@@ -91,9 +92,17 @@ ietd_stop()
 	RETVAL=$?
 	if [ $RETVAL = "0" ] ; then
 		
-		log_daemon_msg "Removing iSCSI enterprise target modules: "
-		modprobe -r iscsi_trgt
-		RETVAL=$?
+		for i in $(seq $ISCSITARGET_MAX_SLEEP); do
+			log_daemon_msg "Removing iSCSI enterprise target modules: "
+			modprobe -r iscsi_trgt
+			RETVAL=$?
+			if [ $RETVAL = "0" ]; then
+				break
+			fi
+			# give iet some time to finish processing
+			sleep 1
+		done
+
 		modprobe -r crc32c 2>/dev/null
 		if [ $RETVAL = "0" ]; then
 			log_end_msg 0

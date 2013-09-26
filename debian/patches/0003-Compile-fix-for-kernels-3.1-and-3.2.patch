@@ -1,0 +1,55 @@
+From 91e08c6b4178cdd843e15a26032c35d8561b1790 Mon Sep 17 00:00:00 2001
+From: agr1 <agr1@48a34bb2-7106-0410-bc49-8aa7273d22a1>
+Date: Thu, 22 Mar 2012 21:25:18 +0000
+Subject: [PATCH 3/3] Compile fix for kernels 3.1 and 3.2
+
+Submitted by Emmanuel Florac <eflorac@intellique.com>
+
+git-svn-id: https://iscsitarget.svn.sourceforge.net/svnroot/iscsitarget/branches/1.4.20@469 48a34bb2-7106-0410-bc49-8aa7273d22a1
+---
+ kernel/event.c   |    1 +
+ kernel/iscsi.h   |    2 ++
+ kernel/nthread.c |    2 ++
+ 3 files changed, 5 insertions(+)
+
+diff --git a/kernel/event.c b/kernel/event.c
+index 240404d..3f18696 100644
+--- a/kernel/event.c
++++ b/kernel/event.c
+@@ -6,6 +6,7 @@
+  * Some functions are based on audit code.
+  */
+ 
++#include <linux/module.h>
+ #include <net/tcp.h>
+ #include "iet_u.h"
+ #include "iscsi_dbg.h"
+diff --git a/kernel/iscsi.h b/kernel/iscsi.h
+index da0cdfd..0a91bee 100644
+--- a/kernel/iscsi.h
++++ b/kernel/iscsi.h
+@@ -9,6 +9,8 @@
+ #define __ISCSI_H__
+ 
+ #include <linux/blkdev.h>
++#include <linux/module.h>
++#include <linux/completion.h>
+ #include <linux/completion.h>
+ #include <linux/pagemap.h>
+ #include <linux/seq_file.h>
+diff --git a/kernel/nthread.c b/kernel/nthread.c
+index a96ff89..db19544 100644
+--- a/kernel/nthread.c
++++ b/kernel/nthread.c
+@@ -6,6 +6,8 @@
+  * This code is licenced under the GPL.
+  */
+ 
++#include <linux/module.h>
++#include <linux/file.h>
+ #include <linux/sched.h>
+ #include <linux/file.h>
+ #include <linux/kthread.h>
+-- 
+1.7.10.4
+

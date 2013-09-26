@@ -1,0 +1,73 @@
+From 3cc03c303d2555034223d64788b47a4fe892156d Mon Sep 17 00:00:00 2001
+From: agr1 <agr1@48a34bb2-7106-0410-bc49-8aa7273d22a1>
+Date: Wed, 26 Oct 2011 17:54:07 +0000
+Subject: [PATCH 2/3] Fix send_data_rsp to handle sense data correctly
+
+Remove an overzealous BUG_ON and reorganize the code to cope with commands both
+with or without a tio.
+
+Signed-off-by: Arne Redlich <arne.redlich@googlemail.com>
+
+git-svn-id: https://iscsitarget.svn.sourceforge.net/svnroot/iscsitarget/branches/1.4.20@467 48a34bb2-7106-0410-bc49-8aa7273d22a1
+---
+ kernel/iscsi.c |   31 ++++++++++++++-----------------
+ 1 file changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/kernel/iscsi.c b/kernel/iscsi.c
+index 7a832e6..906c0ac 100644
+--- a/kernel/iscsi.c
++++ b/kernel/iscsi.c
+@@ -249,6 +249,9 @@ static void do_send_data_rsp(struct iscsi_cmnd *cmnd)
+ 	LIST_HEAD(send);
+ 
+ 	dprintk(D_GENERIC, "%p\n", cmnd);
++
++	BUG_ON(!cmnd->tio);
++
+ 	pdusize = conn->session->param.max_xmit_data_length;
+ 	expsize = cmnd_read_size(cmnd);
+ 	size = min(expsize, tio->size);
+@@ -383,29 +386,23 @@ void send_scsi_rsp(struct iscsi_cmnd *req, void (*func)(struct iscsi_cmnd *))
+ 
+ void send_data_rsp(struct iscsi_cmnd *req, void (*func)(struct iscsi_cmnd *))
+ {
+-	struct iscsi_cmnd *rsp;
+-	struct iscsi_scsi_rsp_hdr *rsp_hdr;
+-	u32 size;
+-
+ 	func(req);
+ 
+-	assert(req->tio);
+-
+-	size = min(req->tio->size, cmnd_read_size(req));
+-
+-	if (req->status == SAM_STAT_GOOD && size)
++	if (req->status == SAM_STAT_GOOD && req->tio && req->tio->size)
+ 		do_send_data_rsp(req);
+ 	else {
+-		rsp = create_scsi_rsp(req);
+-		rsp_hdr = (struct iscsi_scsi_rsp_hdr *) &rsp->pdu.bhs;
+-		if ((size = cmnd_read_size(req)) > req->tio->size) {
++		struct iscsi_cmnd *rsp = create_scsi_rsp(req);
++		struct iscsi_scsi_rsp_hdr *rsp_hdr =
++			(struct iscsi_scsi_rsp_hdr *) &rsp->pdu.bhs;
++		const u32 exp_size = cmnd_read_size(req);
++		const u32 size = req->tio ? req->tio->size : 0;
++
++		if (exp_size > size) {
+ 			rsp_hdr->flags |= ISCSI_FLG_RESIDUAL_UNDERFLOW;
+-			rsp_hdr->residual_count =
+-					cpu_to_be32(size - req->tio->size);
+-		} else if (size < req->tio->size) {
++			rsp_hdr->residual_count = cpu_to_be32(exp_size - size);
++		} else if (exp_size < size) {
+ 			rsp_hdr->flags |= ISCSI_FLG_RESIDUAL_OVERFLOW;
+-			rsp_hdr->residual_count =
+-					cpu_to_be32(req->tio->size - size);
++			rsp_hdr->residual_count = cpu_to_be32(size - exp_size);
+ 		}
+ 		iscsi_cmnd_init_write(rsp);
+ 	}
+-- 
+1.7.10.4
+

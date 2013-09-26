@@ -199,30 +199,25 @@ static void digest_data(struct hash_desc *hash, struct iscsi_cmnd *cmnd,
 			struct tio *tio, u32 offset, u8 *crc)
 {
 	struct scatterlist *sg = cmnd->conn->hash_sg;
-	u32 size, length;
-	int i, idx, count;
+	u32 size, length, npages;
+	int i, idx;
 	unsigned int nbytes;
 
 	size = cmnd->pdu.datasize;
 	nbytes = size = (size + 3) & ~3;
+	npages = size >> PAGE_CACHE_SHIFT;
 
-	offset += tio->offset;
 	idx = offset >> PAGE_CACHE_SHIFT;
 	offset &= ~PAGE_CACHE_MASK;
-	count = get_pgcnt(size, offset);
-	assert(idx + count <= tio->pg_cnt);
 
-	assert(count <= ISCSI_CONN_IOV_MAX);
+	BUG_ON(idx + npages > tio->pg_cnt);
+	BUG_ON(npages > ISCSI_CONN_IOV_MAX);
 
 	sg_init_table(sg, ARRAY_SIZE(cmnd->conn->hash_sg));
 	crypto_hash_init(hash);
 
-	for (i = 0; size; i++) {
-		if (offset + size > PAGE_CACHE_SIZE)
-			length = PAGE_CACHE_SIZE - offset;
-		else
-			length = size;
-
+	for (i = 0; size > 0; i++) {
+		length = min_t(u32, PAGE_CACHE_SIZE - offset, size);
 		sg_set_page(&sg[i], tio->pvec[idx + i], length, offset);
 		size -= length;
 		offset = 0;

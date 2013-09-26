@@ -428,6 +428,10 @@ struct iscsi_logout_rsp_hdr {
 	u32 rsvd5;
 } __packed;
 
+#define ISCSI_LOGOUT_SESSION			0
+#define ISCSI_LOGOUT_CONNECTION			1
+#define ISCSI_LOGOUT_CONNECTION_RECOVER		2
+
 struct iscsi_snack_req_hdr {
 	u8  opcode;
 	u8  flags;

@@ -1,10 +1,43 @@
-iscsitarget (1.4.20.2-10.1) unstable; urgency=low
+iscsitarget (1.4.20.3+svn496-1) unstable; urgency=low
 
-  * Non-maintainer upload.
+  * [798662d] Imported Upstream version 1.4.20.3+svn496
+    Closes: #717155
+  * [947f06d] Add README.source
+  * [6e18336] Try harder to unload the kernel module.
+    Thanks to David Mohr (Closes: #679515)
+  * [ca83a57] Drop patch 001-fix-build-3.8.patch
 
-  * Fixes ietadm not detecting inactive sessions (Closes: #687925).
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Thu, 26 Sep 2013 18:15:08 +0530
 
- -- Loic Dachary (OuoU) <loic@debian.org>  Mon, 17 Sep 2012 10:42:29 +0200
+iscsitarget (1.4.20.3+svn490-2) unstable; urgency=low
+
+  * Upload to unstable
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Sun, 16 Jun 2013 14:07:47 +0530
+
+iscsitarget (1.4.20.3+svn490-1) experimental; urgency=low
+
+  * [6457029] Imported Upstream version 1.4.20.3+svn490
+    (Closes: #698757, #696383)
+  * [22f9a74] Drop patches, applied upstream
+    - inactive-sessions.patch
+    - iscsitarget-prelim-1.4.20.3.patch
+    - 0001-Makefile-changes-to-support-3.x-kernels.patch
+    - 0002-Fix-send_data_rsp-to-handle-sense-data-correctly.patch
+    - 0003-Compile-fix-for-kernels-3.1-and-3.2.patch
+  * [1b1225b] Add patch 001-fix-build-3.8.patch
+
+ -- Ritesh Raj Sarraf <rrs@researchut.com>  Fri, 12 Apr 2013 13:00:43 +0530
+
+iscsitarget (1.4.20.2-11) experimental; urgency=low
+
+  * [6dfdd7c] Add iscsitarget-dkms to Recommends and drop iscsitarget-module
+  * [281b4a4] Update README.Debian explaining the new DKMS package.
+    Thanks to Olaf van der Spek (Closes: #668382)
+  * [a0d484c] Drop patch fix-build-3-2.patch
+  * [afdf1df] Add patches from 1.4.20 stable branch (Closes: #685422)
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Sat, 15 Sep 2012 12:55:24 +0530
 
 iscsitarget (1.4.20.2-10) unstable; urgency=low
 
