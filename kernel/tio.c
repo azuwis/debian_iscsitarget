@@ -44,7 +44,6 @@ struct tio *tio_alloc(int count)
 	tio = kmem_cache_alloc(tio_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	tio->pg_cnt = 0;
-	tio->idx = 0;
 	tio->offset = 0;
 	tio->size = 0;
 	tio->pvec = NULL;
@@ -55,6 +54,43 @@ struct tio *tio_alloc(int count)
 		tio_add_pages(tio, count);
 
 	return tio;
+}
+
+void
+tio_init_iterator(struct tio *tio,
+		  struct tio_iterator *iter)
+{
+	iter->tio = tio;
+	iter->size = 0;
+	iter->pg_idx = 0;
+	iter->pg_off = 0;
+}
+
+size_t
+tio_add_data(struct tio_iterator *iter,
+	     const u8 *data,
+	     size_t len)
+{
+	struct tio *tio = iter->tio;
+	const size_t to_copy = min(tio->pg_cnt * PAGE_SIZE - iter->size, len);
+	size_t residual = to_copy;
+
+	BUG_ON(tio->size < iter->size);
+
+	do {
+		u8 *ptr = page_address(iter->tio->pvec[iter->pg_idx]) + iter->pg_off;
+		size_t chunk = min(PAGE_SIZE - iter->pg_off, residual);
+		memcpy(ptr, data, chunk);
+		residual -= chunk;
+		if (residual ||
+		    iter->pg_off + chunk == PAGE_SIZE) {
+			++iter->pg_idx;
+			iter->pg_off = 0;
+		} else
+			iter->pg_off += chunk;
+	} while (residual);
+
+	return to_copy;
 }
 
 static void tio_free(struct tio *tio)
@@ -82,8 +118,7 @@ void tio_get(struct tio *tio)
 
 void tio_set(struct tio *tio, u32 size, loff_t offset)
 {
-	tio->idx = offset >> PAGE_CACHE_SHIFT;
-	tio->offset = offset & ~PAGE_CACHE_MASK;
+	tio->offset = offset;
 	tio->size = size;
 }
 
@@ -91,6 +126,8 @@ int tio_read(struct iet_volume *lu, struct tio *tio)
 {
 	struct iotype *iot = lu->iotype;
 	assert(iot);
+	if (!tio->size)
+		return 0;
 	return iot->make_request ? iot->make_request(lu, tio, READ) : 0;
 }
 
@@ -98,6 +135,8 @@ int tio_write(struct iet_volume *lu, struct tio *tio)
 {
 	struct iotype *iot = lu->iotype;
 	assert(iot);
+	if (!tio->size)
+		return 0;
 	return iot->make_request ? iot->make_request(lu, tio, WRITE) : 0;
 }
 

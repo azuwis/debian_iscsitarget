@@ -121,6 +121,22 @@ int session_add(struct iscsi_target *target, struct session_info *info)
 	return 0;
 }
 
+void
+session_abort_tasks(struct iscsi_session *session, u32 lun)
+{
+	struct iscsi_conn *conn;
+	struct iscsi_cmnd *cmnd, *tmp;
+
+	list_for_each_entry(conn, &session->conn_list, list) {
+		list_for_each_entry_safe(cmnd, tmp, &conn->pdu_list, conn_list) {
+			if (translate_lun(cmnd_hdr(cmnd)->lun) != lun)
+				continue;
+
+			__cmnd_abort(cmnd);
+		}
+	}
+}
+
 int session_del(struct iscsi_target *target, u64 sid)
 {
 	struct iscsi_session *session;

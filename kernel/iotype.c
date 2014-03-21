@@ -9,7 +9,7 @@
 #include "iscsi_dbg.h"
 
 static LIST_HEAD(iotypes);
-static rwlock_t iotypes_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(iotypes_lock);
 
 static struct iotype *find_iotype(const char *name)
 {

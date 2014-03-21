@@ -247,7 +247,7 @@ static void build_inquiry_response(struct iscsi_cmnd *cmnd)
 			data[7] = len;
 			if (cmnd->lun) { /* We need this ? */
 				memset(data + 8, 0x00, 8);
-				memcpy(data + 8, VENDOR_ID, 
+				memcpy(data + 8, VENDOR_ID,
 					min_t(size_t, strlen(VENDOR_ID), 8));
 				memcpy(data + 16, cmnd->lun->scsi_id,
 								SCSI_ID_LEN);
@@ -291,7 +291,7 @@ static void build_report_luns_response(struct iscsi_cmnd *cmnd)
 	size = min(size & ~(8 - 1), len + 8);
 
 	assert(!tio);
-	tio = cmnd->tio = tio_alloc(get_pgcnt(size, 0));
+	tio = cmnd->tio = tio_alloc(get_pgcnt(size));
 	tio_set(tio, size, 0);
 
 	data = page_address(tio->pvec[idx]);
@@ -375,7 +375,7 @@ static void build_service_action_in_response(struct iscsi_cmnd *cmnd)
 	data64[0] = cpu_to_be64(cmnd->lun->blk_cnt - 1);
 	data[2] = cpu_to_be32(1UL << cmnd->lun->blk_shift);
 
-	tio_set(tio, 12, 0);
+	tio_set(tio, 32, 0);
 }
 
 static void build_read_response(struct iscsi_cmnd *cmnd)
@@ -406,6 +406,73 @@ static void build_write_response(struct iscsi_cmnd *cmnd)
 	if (err)
 		/* Medium Error/Write Fault */
 		iscsi_cmnd_set_sense(cmnd, MEDIUM_ERROR, 0x03, 0x0);
+}
+
+static void build_write_same_response(struct iscsi_cmnd *cmnd) {
+	int err;
+	struct tio *target_tio;
+	struct iet_volume *lu = cmnd->lun;
+	struct tio_iterator iter;
+	u32 MAX_IO_SIZE = 1 << 20; /* 1MByte */
+	u64 length, medium_length;
+	loff_t offset;
+	u8 *data_addr;
+	u32 data_size;
+
+	length = cmnd->tio->size;
+	medium_length = ((loff_t) lu->blk_cnt << lu->blk_shift);
+	offset = cmnd->tio->offset;
+
+	data_addr = page_address(cmnd->tio->pvec[0]);
+	data_size = be32_to_cpu(cmnd_hdr(cmnd)->data_length);
+
+	/* When length = 0, it means we need to write to the end. */
+	if (length == 0) {
+		length = medium_length - offset + 1;
+		dprintk(D_VAAI,
+			"write to end, calculated length = %llu\n", length);
+	}
+
+	if (length + offset > medium_length) {
+		/* Write out of boundary, Invalid Field in CDB */
+		iscsi_cmnd_set_sense(cmnd, ILLEGAL_REQUEST, 0x24, 0x0);
+		return;
+	}
+
+	list_del_init(&cmnd->list);
+
+	/* Fill target_tio with data from request, because it's all
+	   same data, we can just reuse it later with differnt offset. */
+	target_tio = tio_alloc(get_pgcnt(min_t(u32, length, MAX_IO_SIZE)));
+
+	tio_init_iterator(target_tio, &iter);
+	while(iter.pg_idx < target_tio->pg_cnt) {
+		tio_add_data(&iter, data_addr, data_size);
+	}
+
+	while (length > 0) {
+		u32 to_write = (u32)min_t(u64, length, MAX_IO_SIZE);
+		tio_set(target_tio, to_write, offset);
+
+		/* submit to IO layer */
+		err = tio_write(lu, target_tio);
+		if (!err && !LUWCache(lu))
+			err = tio_sync(lu, target_tio);
+
+		if (err) {
+			/* Medium Error/Write Fault */
+			iscsi_cmnd_set_sense(cmnd, MEDIUM_ERROR, 0x03, 0x0);
+			break;
+		}
+
+		length -= to_write;
+		offset += to_write;
+		dprintk(D_VAAI,
+			"Committed %u bytes, %llu left, offset %llu\n",
+			to_write, length, offset);
+	}
+
+	tio_put(target_tio);
 }
 
 static void build_sync_cache_response(struct iscsi_cmnd *cmnd)
@@ -477,11 +544,17 @@ static int disk_check_ua(struct iscsi_cmnd *cmnd)
 			break;
 		default:
 			ua = ua_get_first(cmnd->conn->session, cmnd->lun->lun);
-			iscsi_cmnd_set_sense(cmnd, UNIT_ATTENTION, ua->asc,
-					     ua->ascq);
-			ua_free(ua);
-			send_scsi_rsp(cmnd, build_generic_response);
-			return 1;
+			/*
+			 * potential race: another wthread could've reported it
+			 * in the meantime
+			 */
+			if (ua) {
+				iscsi_cmnd_set_sense(cmnd, UNIT_ATTENTION, ua->asc,
+						     ua->ascq);
+				ua_free(ua);
+				send_scsi_rsp(cmnd, build_generic_response);
+				return 1;
+			}
 		}
 	}
 	return 0;
@@ -492,26 +565,11 @@ static int disk_check_reservation(struct iscsi_cmnd *cmnd)
 	struct iscsi_scsi_cmd_hdr *req = cmnd_hdr(cmnd);
 
 	int ret = is_volume_reserved(cmnd->lun,
-				     cmnd->conn->session->sid);
+				     cmnd->conn->session->sid, req->scb);
 	if (ret == -EBUSY) {
-		switch (req->scb[0]) {
-		case INQUIRY:
-		case RELEASE:
-		case REPORT_LUNS:
-		case REQUEST_SENSE:
-		case READ_CAPACITY:
-			/* allowed commands when reserved */
-			break;
-		case SERVICE_ACTION_IN:
-			if ((cmnd_hdr(cmnd)->scb[1] & 0x1F) == 0x10)
-				break;
-			/* fall through */
-		default:
-			/* return reservation conflict for all others */
-			send_scsi_rsp(cmnd,
-				      build_reservation_conflict_response);
-			return 1;
-		}
+		send_scsi_rsp(cmnd,
+			      build_reservation_conflict_response);
+		return 1;
 	}
 
 	return 0;
@@ -559,6 +617,9 @@ static int disk_execute_cmnd(struct iscsi_cmnd *cmnd)
 	case WRITE_VERIFY:
 		send_scsi_rsp(cmnd, build_write_response);
 		break;
+	case WRITE_SAME_16:
+		send_scsi_rsp(cmnd, build_write_same_response);
+		break;
 	case SYNCHRONIZE_CACHE:
 		send_scsi_rsp(cmnd, build_sync_cache_response);
 		break;
@@ -573,6 +634,12 @@ static int disk_execute_cmnd(struct iscsi_cmnd *cmnd)
 	case VERIFY:
 	case VERIFY_16:
 		send_scsi_rsp(cmnd, build_generic_response);
+		break;
+	case PERSISTENT_RESERVE_IN:
+		send_data_rsp(cmnd, build_persistent_reserve_in_response);
+		break;
+	case PERSISTENT_RESERVE_OUT:
+		send_scsi_rsp(cmnd, build_persistent_reserve_out_response);
 		break;
 	default:
 		eprintk("%s\n", "we should not come here!");

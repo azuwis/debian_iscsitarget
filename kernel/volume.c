@@ -6,6 +6,8 @@
 
 #include <linux/types.h>
 #include <linux/parser.h>
+#include <linux/blkdev.h>
+#include <scsi/scsi.h>
 
 #include "iscsi.h"
 #include "iscsi_dbg.h"
@@ -87,7 +89,7 @@ static void gen_scsiid(struct iet_volume *volume)
 	hash.tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
 	hash.flags = 0;
 
-	if (hash.tfm) {
+	if (!IS_ERR(hash.tfm)) {
 		struct scatterlist sg[2];
 		unsigned int nbytes = 0;
 
@@ -111,8 +113,7 @@ static void gen_scsiid(struct iet_volume *volume)
 						sizeof(volume->target->tid));
 		memcpy(volume->scsi_id + sizeof(volume->target->tid),
 					&volume->lun, sizeof(volume->lun));
-	}	
-
+	}
 }
 
 static int parse_volume_params(struct iet_volume *volume, char *params)
@@ -120,10 +121,12 @@ static int parse_volume_params(struct iet_volume *volume, char *params)
 	int err = 0;
 	unsigned blk_sz;
 	substring_t args[MAX_OPT_ARGS];
-	char *p, *argp = NULL, *buf = (char *) get_zeroed_page(GFP_USER);
+	char *p, *argp = NULL, *bp, *buf = (char *) get_zeroed_page(GFP_USER);
 
 	if (!buf)
 		return -ENOMEM;
+
+	bp = buf;
 
 	strncpy(buf, params, PAGE_CACHE_SIZE);
 
@@ -203,9 +206,23 @@ static int parse_volume_params(struct iet_volume *volume, char *params)
 		err = -EINVAL;
 	}
 
-	free_page((unsigned long) buf);
+	free_page((unsigned long) bp);
 
 	return err;
+}
+
+static void
+volume_reservation_exit(struct iet_volume *volume)
+{
+	struct list_head *l, *n;
+	struct registration *tmp;
+	struct reservation *reservation = &volume->reservation;
+
+	list_for_each_safe(l, n, &reservation->registration_list) {
+		tmp = list_entry(l, struct registration, r_list);
+		list_del(l);
+		kfree(tmp);
+	}
 }
 
 int volume_add(struct iscsi_target *target, struct volume_info *info)
@@ -227,6 +244,7 @@ int volume_add(struct iscsi_target *target, struct volume_info *info)
 
 	volume->target = target;
 	volume->lun = info->lun;
+	INIT_LIST_HEAD(&volume->reservation.registration_list);
 
 	args = kzalloc(info->args_len + 1, GFP_KERNEL);
 	if (!args) {
@@ -290,6 +308,7 @@ void iscsi_volume_destroy(struct iet_volume *volume)
 	volume->iotype->detach(volume);
 	put_iotype(volume->iotype);
 	list_del(&volume->list);
+	volume_reservation_exit(volume);
 	kfree(volume);
 }
 
@@ -331,33 +350,131 @@ void volume_put(struct iet_volume *volume)
 int volume_reserve(struct iet_volume *volume, u64 sid)
 {
 	int err = 0;
+	struct reservation *reservation;
 
 	if (!volume)
 		return -ENOENT;
 
+	reservation = &volume->reservation;
 	spin_lock(&volume->reserve_lock);
-	if (volume->reserve_sid && volume->reserve_sid != sid)
+	if (pr_is_reserved(reservation) && reservation->sid != sid)
 		err = -EBUSY;
-	else
-		volume->reserve_sid = sid;
+	else {
+		reservation->reservation_type = RESERVATION_TYPE_RESERVE;
+		reservation->sid = sid;
+	}
 
 	spin_unlock(&volume->reserve_lock);
 	return err;
 }
 
-int is_volume_reserved(struct iet_volume *volume, u64 sid)
+int is_volume_reserved(struct iet_volume *volume, u64 sid, u8 *scb)
 {
 	int err = 0;
+	struct reservation *reservation;
+	bool registered = false;
+	bool write_excl = false;
+	bool excl_access = false;
+	bool write_excl_ro = false;
+	bool excl_access_ro = false;
 
 	if (!volume)
 		return -ENOENT;
 
-	spin_lock(&volume->reserve_lock);
-	if (!volume->reserve_sid || volume->reserve_sid == sid)
-		err = 0;
-	else
-		err = -EBUSY;
+	reservation = &volume->reservation;
 
+	spin_lock(&volume->reserve_lock);
+	if (!pr_is_reserved(reservation) || reservation->sid == sid) {
+		spin_unlock(&volume->reserve_lock);
+		return 0;
+	}
+
+	if (reservation->reservation_type == RESERVATION_TYPE_RESERVE) {
+		switch (scb[0]) {
+		case INQUIRY:
+		case RELEASE:
+		case REPORT_LUNS:
+		case REQUEST_SENSE:
+		case READ_CAPACITY:
+			/* allowed commands when reserved */
+			break;
+		case SERVICE_ACTION_IN:
+			if ((scb[1] & 0x1F) == 0x10)
+				break;
+			/* fall through */
+		default:
+			err = -EBUSY;
+			break;
+		}
+		spin_unlock(&volume->reserve_lock);
+		return err;
+	}
+
+	registered = pr_initiator_has_registered(reservation, sid);
+
+	switch (reservation->persistent_type) {
+	case PR_TYPE_WRITE_EXCLUSIVE:
+		write_excl = true;
+		break;
+	case PR_TYPE_EXCLUSIVE_ACCESS:
+		excl_access = true;
+		break;
+	case PR_TYPE_WRITE_EXCLUSIVE_REGISTRANTS_ONLY:
+	case PR_TYPE_WRITE_EXCLUSIVE_ALL_REGISTRANTS:
+		write_excl_ro = true;
+		break;
+	case PR_TYPE_EXCLUSIVE_ACCESS_REGISTRANTS_ONLY:
+	case PR_TYPE_EXCLUSIVE_ACCESS_ALL_REGISTRANTS:
+		excl_access_ro = true;
+		break;
+	default:
+		break;
+	}
+
+	switch (scb[0]) {
+	case INQUIRY:
+	case TEST_UNIT_READY:
+	case PERSISTENT_RESERVE_IN:
+	case PERSISTENT_RESERVE_OUT:
+	case REPORT_LUNS:
+	case REQUEST_SENSE:
+	case READ_CAPACITY:
+	case START_STOP:
+		break;
+	case MODE_SENSE:
+	case WRITE_6:
+	case WRITE_10:
+	case WRITE_12:
+	case WRITE_16:
+	case WRITE_SAME_16:
+	case WRITE_VERIFY:
+	case SYNCHRONIZE_CACHE:
+		if (write_excl || excl_access)
+			err = -EBUSY;
+		if ((write_excl_ro || excl_access_ro) && !registered)
+			err = -EBUSY;
+		break;
+	case READ_6:
+	case READ_10:
+	case READ_12:
+	case READ_16:
+	case VERIFY:
+	case VERIFY_16:
+		if (excl_access)
+			err = -EBUSY;
+		if (excl_access_ro && !registered)
+			err = -EBUSY;
+		break;
+	case SERVICE_ACTION_IN:
+		if ((scb[1] & 0x1F) == 0x10)
+			break;
+		/* fall through */
+	case RELEASE:
+	case RESERVE:
+	default:
+		err = -EBUSY;
+		break;
+	}
 	spin_unlock(&volume->reserve_lock);
 	return err;
 }
@@ -365,16 +482,21 @@ int is_volume_reserved(struct iet_volume *volume, u64 sid)
 int volume_release(struct iet_volume *volume, u64 sid, int force)
 {
 	int err = 0;
+	struct reservation *reservation;
 
 	if (!volume)
 		return -ENOENT;
 
+	reservation = &volume->reservation;
 	spin_lock(&volume->reserve_lock);
 
-	if (force || volume->reserve_sid == sid)
-		volume->reserve_sid = 0;
-	else
+	if (reservation->reservation_type == RESERVATION_TYPE_RESERVE &&
+	    (force || reservation->sid == sid)) {
+		reservation->reservation_type = RESERVATION_TYPE_NONE;
+		reservation->sid = 0;
+	} else {
 		err = -EBUSY;
+	}
 
 	spin_unlock(&volume->reserve_lock);
 	return err;

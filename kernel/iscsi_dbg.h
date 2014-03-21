@@ -11,6 +11,8 @@
 #define D_TASK_MGT	(1UL << 7)
 #define D_IOMODE	(1UL << 8)
 #define D_UAC           (1UL << 9)
+#define D_PR            (1UL << 10)
+#define D_VAAI		(1UL << 11)
 
 #define D_DATA		(D_READ | D_WRITE)
 
@@ -18,12 +20,15 @@ extern unsigned long debug_enable_flags;
 
 #define PFX "iscsi_trgt: "
 
-#define dprintk(debug, fmt, args...) do {			\
-	if ((debug) & debug_enable_flags) {			\
-		printk(KERN_DEBUG PFX "%s(%d) " fmt, __FUNCTION__,\
-						__LINE__, args);\
-	}							\
-} while (0)
+#define dprintk(debug, fmt, args...)					\
+	do {								\
+		if ((debug) & debug_enable_flags) {			\
+			printk(KERN_DEBUG PFX "%s(%d) " fmt,		\
+			       __FUNCTION__,				\
+			       __LINE__,				\
+			       ##args);					\
+		}							\
+	} while (0)
 
 #define dprintk_ua(ua, sess, lun)					\
 	dprintk(D_UAC, "sess %llu, lun %u: %p %x %x\n",			\
@@ -31,21 +36,34 @@ extern unsigned long debug_enable_flags;
 		(ua) ? (ua)->asc : 0,					\
 		(ua) ? (ua)->ascq : 0)
 
-#define eprintk(fmt, args...) do {				\
-	printk(KERN_ERR PFX "%s(%d) " fmt, __FUNCTION__,	\
-						__LINE__, args);\
-} while (0)
+#define dprintk_pr(cmd, fmt, args...)					\
+	dprintk(D_PR, "%#Lx:%hu, lun %u, cmnd %p: " fmt,		\
+		cmnd->conn->session->sid,				\
+		cmnd->conn->cid,					\
+		cmnd->lun->lun,						\
+		cmnd,							\
+		##args)
+
+#define eprintk(fmt, args...)						\
+	do {								\
+		printk(KERN_ERR PFX "%s(%d) " fmt,			\
+		       __FUNCTION__,					\
+		       __LINE__,					\
+		       ##args);						\
+	} while (0)
 
 #define iprintk(X...) printk(KERN_INFO PFX X)
 
-#define assert(p) do {						\
-	if (!(p)) {						\
-		printk(KERN_CRIT PFX "BUG at %s:%d assert(%s)\n",\
-		       __FILE__, __LINE__, #p);			\
-		dump_stack();					\
-		BUG();						\
-	}							\
-} while (0)
+/* this has to go away - use BUG() and friends instead */
+#define assert(p)							\
+	do {								\
+		if (!(p)) {						\
+			printk(KERN_CRIT PFX "BUG at %s:%d assert(%s)\n", \
+			       __FILE__, __LINE__, #p);			\
+			dump_stack();					\
+			BUG();						\
+		}							\
+	} while (0)
 
 #ifdef D_IOV
 static inline void iscsi_dump_iov(struct msghdr *msg)

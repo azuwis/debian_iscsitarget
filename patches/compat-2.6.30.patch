@@ -7,5 +7,5 @@
 -		unsigned bsz = bdev_logical_block_size(bio_data->bdev);
 +		unsigned bsz = bdev_hardsect_size(bio_data->bdev);
  		if (!volume->blk_shift)
- 			volume->blk_shift = ilog2(bsz);
- 		else if (volume->blk_shift < ilog2(bsz)) {
+ 			volume->blk_shift = blksize_bits(bsz);
+ 		else if (volume->blk_shift < blksize_bits(bsz)) {

@@ -16,7 +16,7 @@ Index: kernel/iscsi.c
 ===================================================================
 --- 1/kernel/iscsi.c	(working copy)
 +++ 2/kernel/iscsi.c	(revision 137)
-@@ -1925,7 +1925,8 @@ static int iscsi_init(void)
+@@ -1942,7 +1942,8 @@ static int iscsi_init(void)
  	if ((err = event_init()) < 0)
  		goto err;
 
@@ -30,7 +30,7 @@ Index: kernel/tio.c
 ===================================================================
 --- 1/kernel/tio.c	(working copy)
 +++ 2/kernel/tio.c	(revision 137)
-@@ -110,7 +110,8 @@ int tio_sync(struct iet_volume *lu, stru
+@@ -114,7 +114,8 @@ int tio_sync(struct iet_volume *lu, stru
 
  int tio_init(void)
  {

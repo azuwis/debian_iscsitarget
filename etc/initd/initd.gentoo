@@ -17,7 +17,7 @@ start()
 	ebegin "Starting iSCSI Target"
 	modprobe -q crc32c
 	modprobe iscsi_trgt
-	start-stop-daemon --start --exec /usr/sbin/ietd --pidfile /var/run/iscsi_trgt.pid -- $OPTIONS
+	start-stop-daemon --start --exec /usr/sbin/ietd --pidfile /var/run/ietd.pid -- $OPTIONS
 	eend $?
 }
 
@@ -25,7 +25,7 @@ stop()
 {
 	ebegin "Stopping iSCSI Target"
 	ietadm --op delete
-	start-stop-daemon --stop --exec /usr/sbin/ietd --pidfile /var/run/iscsi_trgt.pid
+	start-stop-daemon --stop --exec /usr/sbin/ietd --pidfile /var/run/ietd.pid
 	rm -f /var/run/iscsi_trgt.pid
 	eend $?
 }

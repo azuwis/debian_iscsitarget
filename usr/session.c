@@ -102,8 +102,10 @@ int session_create(struct connection *conn)
 		session->initiator = strdup(conn->initiator);
 
 		conn->session = session;
+		conn->sid = session->sid;
 	} else {
 		session = conn->session;
+		conn->sid = session->sid;
 
 		if (session_exist(conn->tid, session->sid.id64))
 			return 0;

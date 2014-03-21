@@ -56,15 +56,15 @@ blockio_make_request(struct iet_volume *volume, struct tio *tio, int rw)
 	struct request_queue *bdev_q = bdev_get_queue(bio_data->bdev);
 	struct tio_work *tio_work;
 	struct bio *tio_bio = NULL, *bio = NULL, *biotail = NULL;
+	struct blk_plug plug;
 
-	u32 offset = tio->offset;
 	u32 size = tio->size;
 	u32 tio_index = 0;
 
 	int max_pages = 1;
 	int err = 0;
 
-	loff_t ppos = ((loff_t) tio->idx << PAGE_SHIFT) + offset;
+	loff_t ppos = tio->offset;
 
 	/* Calculate max_pages for bio_alloc (memory saver) */
 	if (bdev_q)
@@ -79,7 +79,7 @@ blockio_make_request(struct iet_volume *volume, struct tio *tio, int rw)
 	init_completion(&tio_work->tio_complete);
 
 	/* Main processing loop, allocate and fill all bios */
-	while (tio_index < tio->pg_cnt) {
+	while (size && tio_index < tio->pg_cnt) {
 		bio = bio_alloc(GFP_KERNEL, min(max_pages, BIO_MAX_PAGES));
 		if (!bio) {
 			err = -ENOMEM;
@@ -100,23 +100,23 @@ blockio_make_request(struct iet_volume *volume, struct tio *tio, int rw)
 		atomic_inc(&tio_work->bios_remaining);
 
 		/* Loop for filling bio */
-		while (tio_index < tio->pg_cnt) {
-			unsigned int bytes = PAGE_SIZE - offset;
+		while (size && tio_index < tio->pg_cnt) {
+			unsigned int bytes = PAGE_SIZE;
 
 			if (bytes > size)
 				bytes = size;
 
-			if (!bio_add_page(bio, tio->pvec[tio_index], bytes, offset))
+			if (!bio_add_page(bio, tio->pvec[tio_index], bytes, 0))
 				break;
 
 			size -= bytes;
 			ppos += bytes;
 
-			offset = 0;
-
 			tio_index++;
 		}
 	}
+
+	blk_start_plug(&plug);
 
 	/* Walk the list, submitting bios 1 by 1 */
 	while (tio_bio) {
@@ -127,8 +127,7 @@ blockio_make_request(struct iet_volume *volume, struct tio *tio, int rw)
 		submit_bio(rw, bio);
 	}
 
-	if (bdev_q && bdev_q->unplug_fn)
-		bdev_q->unplug_fn(bdev_q);
+	blk_finish_plug(&plug);
 
 	wait_for_completion(&tio_work->tio_complete);
 
@@ -155,14 +154,14 @@ blockio_open_path(struct iet_volume *volume, const char *path)
 {
 	struct blockio_data *bio_data = volume->private;
 	struct block_device *bdev;
-	int flags = FMODE_READ | (LUReadonly(volume) ? 0 : FMODE_WRITE);
+	int flags = FMODE_EXCL | FMODE_READ | (LUReadonly(volume) ? 0 : FMODE_WRITE);
 	int err = 0;
 
 	bio_data->path = kstrdup(path, GFP_KERNEL);
 	if (!bio_data->path)
 		return -ENOMEM;
 
-	bdev = open_bdev_exclusive(path, flags, THIS_MODULE);
+	bdev = blkdev_get_by_path(path, flags, THIS_MODULE);
 	if (IS_ERR(bdev)) {
 		err = PTR_ERR(bdev);
 		eprintk("Can't open device %s, error %d\n", path, err);
@@ -250,10 +249,10 @@ static void
 blockio_detach(struct iet_volume *volume)
 {
 	struct blockio_data *bio_data = volume->private;
-	int flags = FMODE_READ | (LUReadonly(volume) ? 0 : FMODE_WRITE);
+	int flags = FMODE_EXCL | FMODE_READ | (LUReadonly(volume) ? 0 : FMODE_WRITE);
 
 	if (bio_data->bdev)
-		close_bdev_exclusive(bio_data->bdev, flags);
+		blkdev_put(bio_data->bdev, flags);
 	kfree(bio_data->path);
 
 	kfree(volume->private);

@@ -65,16 +65,16 @@ static int worker_thread(void *arg)
 	struct worker_thread_info *info = wt->w_info;
 	struct iscsi_cmnd *cmnd;
 	struct iscsi_conn *conn;
+
 	DECLARE_WAITQUEUE(wait, current);
 
-	get_io_context(GFP_KERNEL, -1);
+	if (current->io_context)
+		put_io_context(current->io_context);
 
-	if (!current->io_context)
-		eprintk("%s\n", "Failed to get IO context");
-	else if (info->wthread_ioc)
-		copy_io_context(&current->io_context, &info->wthread_ioc);
-	else
-		info->wthread_ioc = current->io_context;
+	if (!info->wthread_ioc)
+		info->wthread_ioc = get_task_io_context(current, GFP_KERNEL, -1);
+	ioc_task_link(info->wthread_ioc);
+	current->io_context = info->wthread_ioc;
 
 	add_wait_queue(&info->wthread_sleep, &wait);
 
@@ -99,16 +99,6 @@ static int worker_thread(void *arg)
 	} while (!kthread_should_stop());
 
 	remove_wait_queue(&info->wthread_sleep, &wait);
-
-	if (current->io_context) {
-		struct io_context *ioc = current->io_context;
-
-		task_lock(current);
-		current->io_context = NULL;
-		task_unlock(current);
-
-		put_io_context(ioc);
-	}
 
 	return 0;
 }

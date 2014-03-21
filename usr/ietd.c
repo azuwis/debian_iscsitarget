@@ -426,6 +426,8 @@ void event_loop(int timeout)
 				pollfd->fd = -1;
 				incoming[i] = NULL;
 				incoming_cnt--;
+				if ((poll_array[POLL_LISTEN].events == 0) && (incoming_cnt < INCOMING_MAX))
+					poll_array[POLL_LISTEN].events = POLLIN;
 				if (session && session->conn_cnt <= 0)
 					session_remove(session);
 			}
@@ -439,8 +441,7 @@ int main(int argc, char **argv)
 	char *config = NULL, pid_buf[64];
 	uid_t uid = 0;
 	gid_t gid = 0;
-	char *isns = NULL;
-	int isns_ac = 0, pid_fd;
+	int pid_fd;
 
 	/* otherwise we would die in some later write() during the event_loop
 	 * instead of getting EPIPE! */
@@ -549,10 +550,6 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	cops->init(config, &isns, &isns_ac);
-	if (isns)
-		timeout = isns_init(isns, isns_ac);
-
 	if (gid && setgid(gid) < 0) {
 		log_error("unable to setgid: %m");
 		exit(-1);
@@ -562,6 +559,8 @@ int main(int argc, char **argv)
 		log_error("unable to setuid: %m");
 		exit(-1);
 	}
+
+	cops->init(config, &timeout);
 
 	event_loop(timeout);
 

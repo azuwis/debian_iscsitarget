@@ -51,6 +51,7 @@ static void sess_param_check(struct iscsi_param_info *info)
 	CHECK_PARAM(info, iparam, error_recovery_level, 0, 0);
 	CHECK_PARAM(info, iparam, data_pdu_inorder, 1, 1);
 	CHECK_PARAM(info, iparam, data_sequence_inorder, 1, 1);
+	CHECK_PARAM(info, iparam, default_retain_time, 0, 0);
 
 	digest_alg_available(&iparam[key_header_digest]);
 	digest_alg_available(&iparam[key_data_digest]);

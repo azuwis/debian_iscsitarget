@@ -40,7 +40,7 @@ Target iqn.2001\-04.com.example:storage.disk2.sys1.xyz
     MaxBurstLength 262144
     FirstBurstLength 65536
     DefaultTime2Wait 2
-    DefaultTime2Retain 20
+    DefaultTime2Retain 0
     MaxOutstandingR2T 8
     NOPInterval 0
     NOPTimeout 0
@@ -279,10 +279,10 @@ and
 should be set to multiples of PAGE_SIZE. Configuring too large values may lead to problems allocating sufficient memory, which in turn may lead to SCSI commands timing out at the initiator host. The default value is 65536.
 .TP
 .B [DefaultTime2Wait <value>]
-Currently not supported.
+Currently not implemented, but can be used to set how long initiators wait before logging back in after a connection is logged out or dropped.
 .TP
 .B [DefaultTime2Retain <value>]
-Currently not supported.
+Currently we only support 0 which means sessions are not retained after the last connection is logged out or dropped.
 .TP
 .B [MaxOutstandingR2T <value>]
 Optional. Controls the maximum number of data transfers the target may request at once, each of up to

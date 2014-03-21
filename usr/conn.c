@@ -51,7 +51,7 @@ void conn_take_fd(struct connection *conn, int fd)
 			      conn->session_param[key_data_digest].val);
 	if (!err)
 		conn->session->conn_cnt++;
-	else if (err < 0 && err != -EEXIST)
+	else
 		log_error("unable to create connection %u for session %#" PRIx64 " in target %u: %d",
 			conn->cid, conn->session->sid.id64, conn->tid, errno);
 
