@@ -1,0 +1,13 @@
+Index: iscsitarget-code/kernel/conn.c
+===================================================================
+--- iscsitarget-code.orig/kernel/conn.c
++++ iscsitarget-code/kernel/conn.c
+@@ -48,7 +48,7 @@ void conn_info_show(struct seq_file *seq
+ 			break;
+ 		case AF_INET6:
+ 			snprintf(buf, sizeof(buf), "[%pI6]",
+-				 &(sk)->sk_v6_daddr);
++				 &inet6_sk(sk)->daddr);
+ 			break;
+ 		default:
+ 			break;

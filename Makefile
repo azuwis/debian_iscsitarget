@@ -66,6 +66,10 @@ kver_lk = $(shell [ `echo $(KVER) | egrep $(1)` ] && echo 1 || echo 0)
 # base first the earlier patch sets will not need to be modified.
 #
 
+ifeq ($(call kver_lt,3,13,0),1)
+	PATCHES := $(PATCHES) compat-3.12.patch
+endif
+
 ifeq ($(call kver_lt,3,10,0),1)
 	PATCHES := $(PATCHES) compat-3.9.patch
 endif
@@ -74,15 +78,15 @@ ifeq ($(call kver_lt,3,7,0),1)
 	PATCHES := $(PATCHES) compat-3.6.patch
 endif
 
-ifeq ($(call kver_le,3,5,0),1)
+ifeq ($(call kver_lt,3,6,0),1)
 	PATCHES := $(PATCHES) compat-3.5.patch
 endif
 
-ifeq ($(call kver_le,3,4,0),1)
+ifeq ($(call kver_lt,3,5,0),1)
 	PATCHES := $(PATCHES) compat-3.2-3.4.patch
 endif
 
-ifeq ($(call kver_le,3,2,0),1)
+ifeq ($(call kver_lt,3,3,0),1)
 	PATCHES := $(PATCHES) compat-2.6.39-3.2.patch
 endif
 
