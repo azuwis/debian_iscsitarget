@@ -9,6 +9,7 @@
 
 #include <linux/ctype.h>
 #include <scsi/scsi.h>
+#include <asm/unaligned.h>
 
 #include "iscsi.h"
 #include "iscsi_dbg.h"
@@ -357,16 +358,18 @@ static void build_service_action_in_response(struct iscsi_cmnd *cmnd)
 	struct tio *tio = cmnd->tio;
 	u32 *data;
 	u64 *data64;
-
+	u32 alloc_len;
+	const u8* cdb = cmnd_hdr(cmnd)->scb;
 	assert(!tio);
 
 	/* only READ_CAPACITY_16 service action is currently supported */
-	if ((cmnd_hdr(cmnd)->scb[1] & 0x1F) != 0x10) {
+	if ((cdb[1] & 0x1F) != 0x10) {
 		/* Invalid Field In CDB */
 		iscsi_cmnd_set_sense(cmnd, ILLEGAL_REQUEST, 0x24, 0x0);
 		return;
 	}
 
+	alloc_len = get_unaligned_be32(&cdb[10]);
 	tio = cmnd->tio = tio_alloc(1);
 	data = page_address(tio->pvec[0]);
 	assert(data);
@@ -375,7 +378,7 @@ static void build_service_action_in_response(struct iscsi_cmnd *cmnd)
 	data64[0] = cpu_to_be64(cmnd->lun->blk_cnt - 1);
 	data[2] = cpu_to_be32(1UL << cmnd->lun->blk_shift);
 
-	tio_set(tio, 32, 0);
+	tio_set(tio, min_t(u32, alloc_len, 32), 0);
 }
 
 static void build_read_response(struct iscsi_cmnd *cmnd)
