@@ -1,3 +1,10 @@
+iscsitarget (1.4.20.3+svn499-1+netease1) unstable; urgency=low
+
+  * Imported Upstream version 1.4.20.3+svn499
+  * debian/patches/: Fix-backward-compatibility-dkms-for-3.x-kernels
+
+ -- Zhong Jianxin <azuwis@gmail.com>  Mon, 24 Mar 2014 11:04:26 +0800
+
 iscsitarget (1.4.20.3+svn496-1) unstable; urgency=low
 
   * [798662d] Imported Upstream version 1.4.20.3+svn496
